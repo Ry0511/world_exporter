@@ -1,0 +1,3 @@
+[submodule "vendor/pyunrealsdk"]
+	path = vendor/pyunrealsdk
+	url = https://github.com/bl-sdk/pyunrealsdk
