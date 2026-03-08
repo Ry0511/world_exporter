@@ -73,11 +73,25 @@ struct FStaticMeshLodInfo {
     TArray<FStaticMeshLodElement> Elements;
 };
 
-struct FVertexBuffer {
+struct FRenderResource {
     uintptr_t* vftable;
-    uint32_t _1[3];  // resource linked list
-    bool bInitialised;
-    uint32_t _2;  // native renderer handle?
+    uint32_t _1[3];
+    uint32_t bIsInitialised;
+};
+
+struct FIndexBuffer : FRenderResource {
+    uint32_t _1;
+};
+
+struct FRawStaticIndexBuffer : FIndexBuffer {
+    TArray<int16_t> Indices;
+    uint32_t NumVertsPerInstance;
+    uint32_t PreallocateInstanceCount;
+    uint32_t bSetupForInstancing;
+};
+
+struct FVertexBuffer : FRenderResource {
+    uint32_t _1;
 };
 
 struct FStaticMeshVertexDataInterface {
@@ -146,7 +160,9 @@ struct FStaticMeshRenderData {
     FPositionVertexBuffer PositionVertexBuffer;
     FColourVertexBuffer ColourVertexBuffer;
     uint32_t NumVertices;
-    uint8_t _1[88];
+    uint32_t bNeedsCpuAccess;
+    FRawStaticIndexBuffer IndexBuffer;
+    uint8_t _1[36];
     TArray<FStaticMeshElement> SubMeshes;
 };
 
