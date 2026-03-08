@@ -21,6 +21,13 @@ struct TArrayWithOwner : TArray<T> {
     game::bl2::UObject* Owner;
 };
 
+template <class T>
+struct TResourceArray {
+    void* vftable;
+    TArray<T> Data;
+    uint32_t bNeedsCpuAccess;
+};
+
 struct FVector {
     float X, Y, Z;
 };
@@ -33,6 +40,17 @@ struct FRotator {
     int Pitch, Yaw, Roll;
 };
 
+struct FPackedNormal {
+    uint8_t W, Z, Y, X;
+    int32_t Packed;
+    int32_t Vector;
+};
+
+struct FStaticMeshFullVertex {
+    FPackedNormal TangentX;
+    FPackedNormal TangentZ;
+};
+
 struct FURL {
     UnmanagedFString Protocol;
     UnmanagedFString Host;
@@ -43,10 +61,11 @@ struct FURL {
     bool Valid;
 };
 
+// TODO: Needs to be validated haven't seen anything actually populate this
 struct FStaticMeshLodElement {
     void* Material;
-    bool bEnableShadowCasting;
-    bool bSelected;
+    uint32_t bEnableShadowCasting;
+    uint32_t bSelected;
     int32_t bEnableCollision : 1;
 };
 
@@ -56,13 +75,26 @@ struct FStaticMeshLodInfo {
 
 struct FVertexBuffer {
     uintptr_t* vftable;
-    uint32_t _1[3]; // resource linked list
+    uint32_t _1[3];  // resource linked list
     bool bInitialised;
-    uint32_t _2; // native renderer handle?
+    uint32_t _2;  // native renderer handle?
+};
+
+struct FStaticMeshVertexDataInterface {
+    struct Vftable {
+        void* _1;
+        void* _2;
+        // basically always implemented as `return 12;`
+        uint32_t(__thiscall* get_stride)(void* self);
+        uint8_t*(__thiscall* get_data_ptr)(void* self);
+    };
+    Vftable* vftable;
+    auto stride() { return vftable->get_stride(this); }
+    auto data() { return vftable->get_data_ptr(this); }
 };
 
 struct FStaticMeshVertexBuffer : FVertexBuffer {
-    uint8_t* VertexData;
+    FStaticMeshVertexDataInterface* VertexData;
     uint32_t NumTexCoords;
     uint8_t* Data;
     uint32_t Stride;
@@ -70,8 +102,13 @@ struct FStaticMeshVertexBuffer : FVertexBuffer {
     uint32_t bUseFullPrecisionUVs;
 };
 
+template <class T>
+struct TStaticMeshVertexData : FStaticMeshVertexDataInterface, TResourceArray<T> {};
+
+struct FPositionVertexData : TStaticMeshVertexData<FVector> {};
+
 struct FPositionVertexBuffer : FVertexBuffer {
-    void* VertexData;
+    FPositionVertexData* VertexData;
     uint8_t* Data;
     uint32_t Stride;
     uint32_t NumVertices;

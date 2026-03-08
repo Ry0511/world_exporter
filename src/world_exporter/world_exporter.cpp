@@ -20,19 +20,24 @@ void export_static_mesh(const fs::path& /*dest*/, const std::wstring& obj_path) 
     auto* cls = unreal::find_class(L"StaticMesh"_fn);
     auto* obj = find_object(cls, obj_path);
     auto* actual = reinterpret_cast<UStaticMesh*>(obj);
-    LOG(INFO, "Model = {:p}", (void*)actual);
+    LOG(INFO, "Model {:p}, {}", (void*)actual, obj_path);
 
     size_t lod_index = 0;
     for (const auto& model : actual->LodModels) {
-        if (model->VertexBuffer.Stride != sizeof(FVector)) {
-            LOG(INFO, "Vertex data for model {:p} is likely not 3 floats", (void*)model);
+        auto& positions = model->PositionVertexBuffer;
+        auto* data = positions.VertexData->data();
+        auto stride = positions.VertexData->stride();
+
+        LOG(INFO, "  LOD[{:>}] - {}, {:p}", lod_index++, stride, (void*)data);
+
+        if (data == nullptr) {
+            LOG(INFO, "   - data pointer is null");
             continue;
         }
-        LOG(INFO, "LOD ~ {:>2}", lod_index++);
-        auto* data = reinterpret_cast<FVector*>(model->VertexBuffer.VertexData);
-        for (size_t i = 0; i < model->VertexBuffer.NumVertices; ++i) {
-            const auto& elem = data[i];
-            LOG(INFO, "{:>3} {:.3f},{:.3f},{:.3f}", i, elem.X, elem.Y, elem.Z);
+
+        for (size_t i = 0; i < positions.NumVertices; ++i) {
+            auto* pos = reinterpret_cast<FVector*>(data + (i * stride));
+            LOG(INFO, "   - {:.3f},{:.3f},{:.3f}", pos->X, pos->Y, pos->Z);
         }
     }
 }
