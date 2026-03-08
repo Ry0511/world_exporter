@@ -1,20 +1,23 @@
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 3.25)
 project(world_exporter VERSION 1.0.0)
 
-add_subdirectory(vendor/unrealsdk)
-
-add_library(world_exporter SHARED)
-target_precompile_headers(world_exporter PRIVATE src/world_exporter/pch.h)
-target_include_directories(world_exporter PUBLIC src)
-set_target_properties(
+add_subdirectory(vendor/pyunrealsdk EXCLUDE_FROM_ALL)
+pyunrealsdk_add_module(
     world_exporter
-    PROPERTIES
-    CXX_STANDARD 23
-    CXX_STANDARD_REQUIRED 23
+    "src/world_exporter/world_exporter.cpp"
+    "src/world_exporter/helpers.h"
+)
+target_include_directories(world_exporter PUBLIC ./src)
+
+install(
+    TARGETS world_exporter
+    RUNTIME DESTINATION "${PROJECT_SOURCE_DIR}/src/world_exporter/py"
+    LIBRARY DESTINATION "${PROJECT_SOURCE_DIR}/src/world_exporter/py"
+    ARCHIVE DESTINATION "${PROJECT_SOURCE_DIR}/src/world_exporter/py"
 )
 
-file(GLOB_RECURSE WORLD_EXPORTER_SOURCES "src/world_exporter/*.cpp")
-message(STATUS "${WORLD_EXPORTER_SOURCES}")
-target_sources(world_exporter PRIVATE ${WORLD_EXPORTER_SOURCES})
-
-target_link_libraries(world_exporter PRIVATE unrealsdk)
+install(
+    FILES $<TARGET_PDB_FILE:world_exporter>
+    DESTINATION "${PROJECT_SOURCE_DIR}/src/world_exporter/py"
+    OPTIONAL
+)
