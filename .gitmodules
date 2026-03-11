@@ -1,3 +1,6 @@
 [submodule "vendor/pyunrealsdk"]
 	path = vendor/pyunrealsdk
 	url = https://github.com/bl-sdk/pyunrealsdk
+[submodule "vendor/tinygltf"]
+	path = vendor/tinygltf
+	url = https://github.com/syoyo/tinygltf
