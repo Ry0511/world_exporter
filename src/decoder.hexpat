@@ -18,6 +18,12 @@ struct TArrayWithOwner<T> : TArray<T> { UObject* owner : s32; };
 struct TArrayVoid : TArray<u32> {};
 struct FString : TArray<char16> {};
 
+struct FRenderResource {
+    u32* vftable : u32;
+    u32 _1[3];
+    u32 bIsInitialised;
+};
+
 struct FURL {
   FString protocol;
   FString host;
@@ -151,4 +157,17 @@ struct UStaticMesh {
     float LodMaxRange;
 };
 
-UStaticMesh static_mesh_vertex_buffer @ 0x390f22a0;
+struct FModelVertexBuffer {
+  FVertexBuffer _VertexBuffer;
+  TArray<FModelVertex> Vertices;
+};
+
+struct UModel {
+    UObject _THIS_UObject;
+    TArrayWithOwner<u32> _1[5];
+    TArray<u32> _2[4];
+    u8 _3[20];
+    FModelVertexBuffer VertexBuffer;
+};
+
+UModel _1 @ 0x1ce26c18;

@@ -20,10 +20,11 @@ if str(file_dir) not in sys.path:
 #     if node:
 #         print(obj)
 #         print(obj.GetPosition())
-#         obj.SetHidden(False)
+#         print(obj.GetRotation())
 
-from world_exporter import export_static_meshes
-export_static_meshes(export_dir / "full_export.obj")
+from world_exporter import *
+# export_static_meshes(export_dir / "ffssanct.obj")
+export_world(export_dir)
 
 #
 # i = 0
