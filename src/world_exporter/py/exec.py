@@ -1,21 +1,42 @@
 import sys
 from pathlib import Path
-from unrealsdk import find_all
+from unrealsdk.unreal import UObject, WrappedStruct
+from unrealsdk import find_all, find_class
 
-file_dir = str(Path(__file__).parent.absolute())
+file_dir = Path(__file__).parent.absolute()
+export_dir = file_dir / "exports"
 
-if file_dir not in sys.path:
-    sys.path.append(file_dir)
+if str(file_dir) not in sys.path:
+    sys.path.append(str(file_dir))
 
-i = 0
+# for obj in find_all("StaticMeshComponent", False):
+#
+#     node = obj.Outer
+#     while node:
+#         if node.Name == "TheWorld":
+#             break
+#         node = node.Outer
+#
+#     if node:
+#         print(obj)
+#         print(obj.GetPosition())
+#         obj.SetHidden(False)
 
-for world in find_all("StaticMesh", False):
-    if int(world.ObjectFlags) & (0x400 | 0x200):
-        continue
-    print(world._path_name())
-    if i == 5:
-        import world_exporter
+from world_exporter import export_static_meshes
+export_static_meshes(export_dir / "full_export.obj")
 
-        dest = str(Path.cwd() / "test_file.txt")
-        world_exporter.export_static_mesh(dest, world._path_name())
-    i += 1
+#
+# i = 0
+# for mesh in find_all("StaticMesh", False):
+#     if int(mesh.ObjectFlags) & (0x400 | 0x200):
+#         continue
+#
+#     print(f'{i:>3} {mesh.Name}')
+#     if i == 10:
+#         import world_exporter
+#
+#         print(mesh._path_name())
+#         dest = file_dir / "exports" / (str(mesh.Name).lower() + ".obj")
+#         dest.parent.mkdir(parents=True, exist_ok=True)
+#         world_exporter.export_static_mesh(str(dest), mesh._path_name())
+#     i += 1

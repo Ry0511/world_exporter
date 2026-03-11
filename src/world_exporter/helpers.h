@@ -10,9 +10,10 @@
 #include "pyunrealsdk/pch.h"
 #include "unrealsdk/game/bl2/offsets.h"
 
-namespace world_exporter::helpers {
+namespace world_exporter {
 UNREALSDK_UNREAL_STRUCT_PADDING_PUSH()
 
+namespace helpers {
 using namespace unrealsdk;
 using namespace unrealsdk::unreal;
 
@@ -28,8 +29,35 @@ struct TResourceArray {
     uint32_t bNeedsCpuAccess;
 };
 
+struct Actor : game::bl2::UObject {
+    uint8_t _1[328];
+};
+
+template <class T, auto SmallBufferSize>
+struct TArrayInline {
+    T InlineData[SmallBufferSize];
+    T* SecondaryData;
+    int32_t Length;
+    int32_t Count;
+
+    T* at(size_t i) {
+        if (Count < SmallBufferSize) {
+            return InlineData[i];
+        }
+        return SecondaryData[i];
+    }
+
+    T& operator[](size_t i) {
+        return *at(i);
+    }
+};
+
 struct FVector {
     float X, Y, Z;
+};
+
+struct FVector2D {
+    float X, Y;
 };
 
 struct FPlane : FVector {
@@ -173,7 +201,73 @@ struct UStaticMesh : game::bl2::UObject {
     float LodMaxRange;
 };
 
+struct FModelVertex {
+    FVector Position;
+    FPackedNormal TangentX;
+    FPackedNormal TangentZ;
+    FVector2D TexCoord;
+    FVector2D ShadowTexCoord;
+};
+
+struct FPoly {
+    FVector Base;
+    FVector Normal;
+    FVector TextureU;
+    FVector TextureV;
+    TArrayInline<FVector, 16> Vertices;
+};
+
+struct UPolys : game::bl2::UObject {
+    TArrayWithOwner<FPoly> Elements;
+};
+
+struct FVert {
+    int32_t VertexIndex;
+    int32_t Side;
+    FVector2D ShadowTexCoord;
+    FVector2D BackfaceShadowTexCoord;
+};
+
+struct UModel : game::bl2::UObject {
+    UPolys* Polys;
+    TArrayWithOwner<void*> _1;
+    TArrayWithOwner<FVert> Verts;
+    TArrayWithOwner<FVector> Vectors;
+    TArrayWithOwner<FVector> Points;
+    TArrayWithOwner<void*> _2;
+};
+
+struct ULevel : game::bl2::UObject {
+    TArrayWithOwner<game::bl2::UObject*> Actors;
+    FURL Url;
+    UModel* Model;
+    TArray<void*> ModelComponents;
+    TArray<void*> GameSequences;
+};
+
+struct UWorld : game::bl2::UObject {
+    uintptr_t* FNetworkNotifyVtable;
+    void* FSceneInterface;
+    TArray<ULevel*> Levels;
+    ULevel* PersistentLevel;
+    void* PersistentFaceFxAnimSet;
+    ULevel* CurrentLevel;
+    ULevel* CurrentLevelPendingVisibility;
+};
+
+struct StaticMeshComponent : game::bl2::UObject {
+    uint8_t _1[412];
+    FVector Translation;  // 476
+    FRotator Rotation;    // 488
+    float Scale;          // 500
+    FVector Scale3D;      // 504
+    uint8_t _2[24];
+    UStaticMesh* StaticMesh;  // 540
+};
+
+}  // namespace helpers
+
 UNREALSDK_UNREAL_STRUCT_PADDING_POP()
-}  // namespace world_exporter::helpers
+}  // namespace world_exporter
 
 #endif
