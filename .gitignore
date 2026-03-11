@@ -1,6 +1,9 @@
 .idea
 out
 
+src/**/*.pyd
+src/**/*.pdb
+
 ### C++ template
 # Prerequisites
 *.d
