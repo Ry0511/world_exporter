@@ -5,10 +5,13 @@
 //
 
 #include "pyunrealsdk/pch.h"
+
+#include "world_exporter/cpp/helpers.h"
+#include "world_exporter/cpp/world_exporter.h"
+
 #include "unrealsdk/unreal/find_class.h"
 #include "unrealsdk/unreal/properties/zboolproperty.h"
 #include "unrealsdk/unreal/wrappers/gobjects.h"
-#include "world_exporter/cpp/helpers.h"
 
 namespace fs = std::filesystem;
 
@@ -18,11 +21,9 @@ using namespace unrealsdk;
 using namespace unrealsdk::unreal;
 using namespace world_exporter::helpers;
 
-void export_world(const fs::path& /*dest*/, const std::wstring& obj_path) {
-    auto* cls = unreal::find_class(L"World"_fn);
-    auto* obj = find_object(cls, obj_path);
-    auto* actual = reinterpret_cast<UWorld*>(obj);
-    LOG(INFO, "Model {:p}, {}", (void*)actual, obj_path);
+void export_world(const fs::path& dest) {
+    world_exporter::WorldExporter exporter{};
+    exporter.export_world(dest);
 }
 
 void export_static_mesh(const fs::path& dest, const std::wstring& obj_path) {
@@ -170,8 +171,7 @@ PYBIND11_MODULE(world_exporter, m) {
     m.def(
         "export_world",
         &export_world,
-        "dest"_a,
-        "obj_path"_a
+        "dest"_a
     );
     m.def(
         "export_static_mesh",

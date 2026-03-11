@@ -13,19 +13,20 @@
 namespace world_exporter {
 UNREALSDK_UNREAL_STRUCT_PADDING_PUSH()
 
+// TODO: At some point all of this is going to need to be cleand up
+
 namespace helpers {
 using namespace unrealsdk;
-using namespace unrealsdk::unreal;
 
 template <class T>
-struct TArrayWithOwner : TArray<T> {
-    game::bl2::UObject* Owner;
+struct TArrayWithOwner : unreal::TArray<T> {
+    unreal::UObject* Owner;
 };
 
 template <class T>
 struct TResourceArray {
     void* vftable;
-    TArray<T> Data;
+    unreal::TArray<T> Data;
     uint32_t bNeedsCpuAccess;
 };
 
@@ -84,12 +85,12 @@ struct FStaticMeshFullVertex {
 };
 
 struct FURL {
-    UnmanagedFString Protocol;
-    UnmanagedFString Host;
+    unreal::UnmanagedFString Protocol;
+    unreal::UnmanagedFString Host;
     int32_t Port;
-    UnmanagedFString Map;
-    TArray<UnmanagedFString> Op;
-    UnmanagedFString Portal;
+    unreal::UnmanagedFString Map;
+    unreal::TArray<unreal::UnmanagedFString> Op;
+    unreal::UnmanagedFString Portal;
     bool Valid;
 };
 
@@ -102,7 +103,7 @@ struct FStaticMeshLodElement {
 };
 
 struct FStaticMeshLodInfo {
-    TArray<FStaticMeshLodElement> Elements;
+    unreal::TArray<FStaticMeshLodElement> Elements;
 };
 
 struct FRenderResource {
@@ -116,7 +117,7 @@ struct FIndexBuffer : FRenderResource {
 };
 
 struct FRawStaticIndexBuffer : FIndexBuffer {
-    TArray<int16_t> Indices;
+    unreal::TArray<int16_t> Indices;
     uint32_t NumVertsPerInstance;
     uint32_t PreallocateInstanceCount;
     uint32_t bSetupForInstancing;
@@ -174,7 +175,7 @@ struct FFragmentRange {
 
 struct FStaticMeshElement {
     void* Material;
-    UnmanagedFString Name;
+    unreal::UnmanagedFString Name;
     int32_t bEnableCollision;
     int32_t bOldEnableCollision;
     int32_t bEnableShadowCasting;
@@ -183,7 +184,7 @@ struct FStaticMeshElement {
     uint32_t MinVertexIndex;
     uint32_t MaxVertexIndex;
     uint32_t MaterialIndex;
-    TArray<FFragmentRange> Fragments;
+    unreal::TArray<FFragmentRange> Fragments;
     void* PlatformData;
 };
 
@@ -195,12 +196,12 @@ struct FStaticMeshRenderData {
     uint32_t bNeedsCpuAccess;
     FRawStaticIndexBuffer IndexBuffer;
     uint8_t _1[36];
-    TArray<FStaticMeshElement> SubMeshes;
+    unreal::TArray<FStaticMeshElement> SubMeshes;
 };
 
 struct UStaticMesh : game::bl2::UObject {
-    TArray<FStaticMeshRenderData*> LodModels;
-    TArray<FStaticMeshLodInfo> LodInfo;
+    unreal::TArray<FStaticMeshRenderData*> LodModels;
+    unreal::TArray<FStaticMeshLodInfo> LodInfo;
     float LodDistanceRatio;
     float LodMaxRange;
 };
@@ -242,17 +243,17 @@ struct UModel : game::bl2::UObject {
 };
 
 struct ULevel : game::bl2::UObject {
-    TArrayWithOwner<game::bl2::UObject*> Actors;
+    TArrayWithOwner<unreal::UObject*> Actors;
     FURL Url;
     UModel* Model;
-    TArray<void*> ModelComponents;
-    TArray<void*> GameSequences;
+    unreal::TArray<void*> ModelComponents;
+    unreal::TArray<void*> GameSequences;
 };
 
 struct UWorld : game::bl2::UObject {
     uintptr_t* FNetworkNotifyVtable;
     void* FSceneInterface;
-    TArray<ULevel*> Levels;
+    unreal::TArray<ULevel*> Levels;
     ULevel* PersistentLevel;
     void* PersistentFaceFxAnimSet;
     ULevel* CurrentLevel;
