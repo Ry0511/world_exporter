@@ -6,8 +6,9 @@
 
 #include "pyunrealsdk/pch.h"
 #include "unrealsdk/unreal/find_class.h"
+#include "unrealsdk/unreal/properties/zboolproperty.h"
 #include "unrealsdk/unreal/wrappers/gobjects.h"
-#include "world_exporter/helpers.h"
+#include "world_exporter/cpp/helpers.h"
 
 namespace fs = std::filesystem;
 
@@ -59,9 +60,11 @@ void export_static_mesh(const fs::path& dest, const std::wstring& obj_path) {
 
 void export_static_meshes(const fs::path& dest) {
     const auto outer_name = L"TheWorld"_fn;
+    const auto parent_type = L"StaticMeshCollectionActor"_fn;
     const auto* mesh_cls = unreal::find_class(L"StaticMeshComponent"_fn);
     const auto* static_mesh_prop = mesh_cls->find_prop_and_validate<ZObjectProperty>(L"StaticMesh"_fn);
-    const auto* get_pos_func = mesh_cls->find_func_and_validate(L"GetPosition"_fn);
+    const auto* local_to_world_mat = mesh_cls->find_prop_and_validate<ZStructProperty>(L"_LocalToWorld"_fn);
+    const auto* is_hidden = mesh_cls->find_prop_and_validate<ZBoolProperty>(L"HiddenGame"_fn);
     const GObjects& gobj = gobjects();
 
     struct MeshExportInfo {
@@ -90,8 +93,12 @@ void export_static_meshes(const fs::path& dest) {
             outer = outer->Outer();
         }
 
+        if (outer == nullptr || obj->Outer()->Class()->Name() != parent_type) {
+            continue;
+        }
 
-        if (outer != nullptr) {
+        auto hidden = get_property(is_hidden, 0, reinterpret_cast<uintptr_t>(outer));
+        if (!hidden) {
             meshes.emplace_back(reinterpret_cast<StaticMeshComponent*>(obj), 0);
         }
     }
@@ -121,15 +128,14 @@ void export_static_meshes(const fs::path& dest) {
             continue;
         }
 
-        WrappedStruct s = ((UObject*)info.TheMesh)->get<UFunction, BoundFunction>(get_pos_func).call<ZStructProperty>();
-        const FVector* t = reinterpret_cast<FVector*>(s.base.get());
+        auto* obj = reinterpret_cast<UObject*>(info.TheMesh);
+        WrappedStruct m = get_property(local_to_world_mat, 0, reinterpret_cast<uintptr_t>(obj));
+        const auto& mat = *reinterpret_cast<FMatrix*>(m.base.get());
 
         for (size_t i = 0; i < positions.NumVertices; ++i) {
-            auto* pos = reinterpret_cast<FVector*>(data + (i * stride));
-            out << "v " << ((pos->X + t->X) * 0.01F)
-                << " " << ((pos->Y + t->Y) * 0.01F)
-                << " " << ((pos->Z + t->Z) * 0.01F)
-                << "\n";
+            const auto& pos = *reinterpret_cast<FVector*>(data + (i * stride));
+            FVector p = transform_point(mat, pos);
+            out << "v " << p.X << " " << p.Y << " " << p.Z << "\n";
         }
         info.BaseIndex = base_index;
         base_index += positions.NumVertices;

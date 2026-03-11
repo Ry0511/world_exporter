@@ -68,6 +68,10 @@ struct FRotator {
     int Pitch, Yaw, Roll;
 };
 
+struct FMatrix {
+    float M[4][4];
+};
+
 struct FPackedNormal {
     uint8_t W, Z, Y, X;
     int32_t Packed;
@@ -264,6 +268,9 @@ struct StaticMeshComponent : game::bl2::UObject {
     uint8_t _2[24];
     UStaticMesh* StaticMesh;  // 540
 };
+
+constexpr FVector ZERO_VECTOR = FVector{0.0F, 0.0F, 0.0F};
+FVector transform_point(const FMatrix& mat, const FVector& point);
 
 }  // namespace helpers
 
