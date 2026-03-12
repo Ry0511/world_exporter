@@ -13,6 +13,8 @@
 namespace world_exporter {
 UNREALSDK_UNREAL_STRUCT_PADDING_PUSH()
 
+namespace fs = std::filesystem;
+
 // TODO: At some point all of this is going to need to be cleand up
 
 namespace helpers {
