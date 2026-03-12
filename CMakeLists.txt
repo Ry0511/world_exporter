@@ -3,7 +3,7 @@ project(world_exporter VERSION 1.0.0)
 
 set(TINYGLTF_HEADER_ONLY ON CACHE INTERNAL "" FORCE)
 set(TINYGLTF_INSTALL OFF CACHE INTERNAL "" FORCE)
-add_subdirectory(vendor/tinygltf)
+add_subdirectory(vendor/tinygltf EXCLUDE_FROM_ALL)
 
 add_subdirectory(vendor/pyunrealsdk EXCLUDE_FROM_ALL)
 pyunrealsdk_add_module(
@@ -26,4 +26,14 @@ install(
     FILES $<TARGET_PDB_FILE:world_exporter>
     DESTINATION "${PROJECT_SOURCE_DIR}/src/world_exporter/py"
     OPTIONAL
+)
+
+add_executable(tinygltftest "./src/world_exporter/other/tinygltftest.cpp")
+target_include_directories(tinygltftest PRIVATE "vendor")
+set_target_properties(
+    tinygltftest
+    PROPERTIES
+    CXX_STANDARD 23
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
 )
