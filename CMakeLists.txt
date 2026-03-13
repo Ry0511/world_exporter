@@ -10,10 +10,13 @@ pyunrealsdk_add_module(
     world_exporter
     "src/world_exporter/world_exporter.cpp"
     "src/world_exporter/cpp/world_exporter.cpp"
+    "src/world_exporter/cpp/static_mesh_exporter.cpp"
+    "src/world_exporter/cpp/static_mesh_component_exporter.cpp"
+    "src/world_exporter/cpp/tinygltf_init.cpp"
     "src/world_exporter/cpp/helpers.cpp"
 )
 target_include_directories(world_exporter PUBLIC ./src)
-target_include_directories(${PROJECT_NAME} PRIVATE "vendor")
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE "vendor")
 
 install(
     TARGETS world_exporter

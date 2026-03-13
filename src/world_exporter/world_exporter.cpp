@@ -118,7 +118,6 @@ void export_static_meshes(const fs::path& dest) {
         }
 
         auto& model = mesh->LodModels[0];
-
         auto& positions = model->PositionVertexBuffer;
         auto* data = positions.VertexData->data();
         auto stride = positions.VertexData->stride();

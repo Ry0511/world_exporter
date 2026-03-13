@@ -16,12 +16,10 @@ namespace world_exporter {
 
 using namespace helpers;
 
-namespace {
-UClass* world_class{nullptr};
-UClass* terrain_class{nullptr};
-UClass* static_mesh_comp_class{nullptr};
-UClass* static_mesh_collection_class{nullptr};
-}  // namespace
+UClass* WorldExporter::world_class{nullptr};
+UClass* WorldExporter::terrain_class{nullptr};
+UClass* WorldExporter::static_mesh_comp_class{nullptr};
+UClass* WorldExporter::static_mesh_collection_class{nullptr};
 
 void WorldExporter::reset() {
     m_Worlds.clear();
@@ -32,58 +30,46 @@ void WorldExporter::reset() {
 void WorldExporter::export_world(const fs::path& dest) {
     reset();
     m_RootDir = dest;
-    // m_AssetDir = dest / "_a";
+    if (auto parent = m_RootDir.parent_path(); !fs::is_directory(parent)) {
+        throw std::runtime_error{std::format("parent directory must exist at {}", parent.string())};
+    }
+    fs::create_directory(m_RootDir);
 
     world_class = find_class(L"World"_fn);
     terrain_class = find_class(L"Terrain"_fn);
     static_mesh_comp_class = find_class(L"StaticMeshComponent"_fn);
     static_mesh_collection_class = find_class(L"StaticMeshCollectionActor"_fn);
 
+    // default material at index 0
+    tinygltf::Material mat{};
+    mat.pbrMetallicRoughness.baseColorFactor = {1.0F, 1.0F, 1.0F, 1.0F};
+    mat.doubleSided = true;
+    m_TheModel.materials.push_back(mat);
+    m_TheModel.asset.version = "2.0";
+    m_TheModel.asset.generator = "tinygltf";
+
     collect_exports_from_scene();
+    export_static_meshes();
+    export_static_mesh_components();
 
-    LOG(
-        INFO,
-        "finished collecting exports worlds={}, terrains={}, meshes={}",
-        m_Worlds.size(),
-        m_Terrains.size(),
-        m_StaticMeshComponents.size()
+    m_TheModel.scenes.push_back(m_TheScene);
+
+    tinygltf::TinyGLTF gltf{};
+    bool ok = gltf.WriteGltfSceneToFile(
+        &m_TheModel,
+        (dest / "export.gltf").string(),
+        false,  // embedImages
+        false,  // embedBuffers
+        true,   // prettyPrint
+        false   // writeBinary
     );
-
-    LOG(INFO, "Export Worlds");
-    for (const auto* obj : m_Worlds) {
-        LOG(INFO, " - {}", obj->get_path_name());
-    }
-
-    LOG(INFO, "Export Terrains");
-    for (const auto* obj : m_Terrains) {
-        LOG(INFO, " - {}", obj->get_path_name());
-    }
-
-    const auto* static_mesh_prop = static_mesh_comp_class->find_prop_and_validate<ZObjectProperty>(L"StaticMesh"_fn);
-    // const auto* local_to_world_mat = static_mesh_comp_class->find_prop_and_validate<ZStructProperty>(L"_LocalToWorld"_fn);
-    // const auto* is_hidden = static_mesh_comp_class->find_prop_and_validate<ZBoolProperty>(L"HiddenGame"_fn);
-
-    LOG(INFO, "Export Meshes");
-    std::unordered_set<std::wstring> unique_meshes{};
-    for (const auto* obj : m_StaticMeshComponents) {
-        LOG(INFO, " - {}", obj->get_path_name());
-
-        auto* mesh_obj = get_property(static_mesh_prop, 0, reinterpret_cast<uintptr_t>(obj));
-        auto* mesh = reinterpret_cast<UStaticMesh*>(mesh_obj);
-        if (mesh != nullptr) {
-            unique_meshes.insert(mesh_obj->get_path_name());
-        }
-    }
-
-    LOG(INFO, "Unique Static Meshes");
-    for (const auto& name : unique_meshes) {
-        LOG(INFO, " - {}", name);
+    if (!ok) {
+        LOG(ERROR, "failed to write the scene to a .gltf file");
     }
 }
 
 void WorldExporter::collect_exports_from_scene() {
     const GObjects& gobj = unrealsdk::gobjects();
-
     std::vector<UObject*> roots{};
 
     for (size_t i = 0; i < gobj.size(); i++) {
@@ -95,6 +81,7 @@ void WorldExporter::collect_exports_from_scene() {
             continue;
         }
 
+        // parent/outer of StaticMeshComponents
         if (obj->is_instance(static_mesh_collection_class)) {
             roots.emplace_back(obj);
 

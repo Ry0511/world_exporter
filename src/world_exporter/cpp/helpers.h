@@ -63,6 +63,10 @@ struct FVector2D {
     float X, Y;
 };
 
+struct FVector4 {
+    float X, Y, Z, W;
+};
+
 struct FPlane : FVector {
     float W;
 };
@@ -75,15 +79,69 @@ struct FMatrix {
     float M[4][4];
 };
 
-struct FPackedNormal {
-    uint8_t W, Z, Y, X;
-    int32_t Packed;
-    int32_t Vector;
+// for reference
+// https://en.wikipedia.org/wiki/IEEE_754
+// https://en.wikipedia.org/wiki/Half-precision_floating-point_format
+// https://en.wikipedia.org/wiki/Single-precision_floating-point_format
+//
+struct Float32 {
+    union {
+        struct {
+            uint32_t Mantissa : 23;
+            uint32_t Exponent : 8;
+            uint32_t Sign : 1;
+        } V;
+        float32_t FloatValue;
+    };
 };
 
-struct FStaticMeshFullVertex {
+struct Float16 {
+    union {
+        struct {
+            uint16_t Mantissa : 10;
+            uint16_t Exponent : 5;
+            uint16_t Sign : 1;
+        } V;
+        uint16_t Raw;
+    };
+
+    float as_float() const noexcept {
+        Float32 ret{};
+        ret.V.Sign = V.Sign;
+
+        if (V.Exponent == 0) {
+            ret.V.Exponent = 0;
+            ret.V.Mantissa = 0;
+        } else if (V.Exponent == 31) {
+            ret.V.Exponent = 142;
+            ret.V.Mantissa = 8380416;
+        } else {
+            ret.V.Exponent = int32_t(V.Exponent) - 15 + 127;
+            ret.V.Mantissa = int16_t(V.Mantissa) << 13;
+        }
+
+        return ret.FloatValue;
+    };
+};
+
+struct FVector2DHalf {
+    Float16 X, Y;
+
+    FVector2D as_vec2() const noexcept {
+        return FVector2D{X.as_float(), Y.as_float()};
+    }
+};
+
+struct FPackedNormal {
+    uint8_t W, Z, Y, X;
+};
+
+// variable struct size actual size determined by stride
+struct TStaticMeshFullVertexFloat16UVs {
     FPackedNormal TangentX;
     FPackedNormal TangentZ;
+    // variable size - determined by ::NumTexCoords
+    FVector2DHalf UVs[4];
 };
 
 struct FURL {
@@ -263,12 +321,7 @@ struct UWorld : game::bl2::UObject {
 };
 
 struct StaticMeshComponent : game::bl2::UObject {
-    uint8_t _1[412];
-    FVector Translation;  // 476
-    FRotator Rotation;    // 488
-    float Scale;          // 500
-    FVector Scale3D;      // 504
-    uint8_t _2[24];
+    uint8_t _1[476];
     UStaticMesh* StaticMesh;  // 540
 };
 
