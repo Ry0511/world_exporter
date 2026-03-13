@@ -3,6 +3,7 @@ out
 
 src/**/*.pyd
 src/**/*.pdb
+src/world_exporter/py/exports/*
 
 ### C++ template
 # Prerequisites
