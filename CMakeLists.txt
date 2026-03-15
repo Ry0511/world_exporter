@@ -31,6 +31,10 @@ install(
     OPTIONAL
 )
 
+set(GLM_ENABLE_CXX_20 ON CACHE INTERNAL "" FORCE)
+add_subdirectory(vendor/glm EXCLUDE_FROM_ALL)
+target_link_libraries(world_exporter PRIVATE glm::glm)
+
 add_executable(tinygltftest "./src/world_exporter/other/tinygltftest.cpp")
 target_include_directories(tinygltftest PRIVATE "vendor")
 set_target_properties(

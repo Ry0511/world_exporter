@@ -20,7 +20,7 @@ using namespace unrealsdk::unreal;
 namespace helpers {
 struct UStaticMesh;
 struct StaticMeshComponent;
-}
+}  // namespace helpers
 
 class WorldExporter {
    private:
@@ -32,7 +32,7 @@ class WorldExporter {
     std::vector<UObject*> m_Worlds;
     std::vector<UObject*> m_Terrains;
     std::vector<UObject*> m_StaticMeshComponents;
-    std::unordered_map<uintptr_t, int> m_MeshMap; // TODO: not exactly 'unique' across levels
+    std::unordered_map<uintptr_t, int> m_MeshMap;
 
    private:
     static UClass* world_class;

@@ -51,6 +51,7 @@ void WorldExporter::export_static_mesh(const fs::path& mesh_path, helpers::UStat
         || model->IndexBuffer.bIsInitialised == 0
         || model->PositionVertexBuffer.bIsInitialised == 0
         || model->VertexBuffer.bIsInitialised == 0
+        || (model->IndexBuffer.Indices.size() % 3) != 0
     ) {
         LOG(INFO, "LOD[0] does not seem to be setup/ready for {} - skipping", mesh->Name);
         return;
@@ -73,7 +74,18 @@ void WorldExporter::export_static_mesh(const fs::path& mesh_path, helpers::UStat
 
         const auto& indices = model->IndexBuffer.Indices;
         const auto size_in_bytes = indices.size() * sizeof(uint16_t);
-        out.write(reinterpret_cast<char*>(indices.data), size_in_bytes);
+        for (size_t i = 0; i < indices.size(); i += 3) {
+            //      1
+            //     . .
+            //    0...2
+            //
+            //      2
+            //     . .
+            //    0...1
+            out.write(reinterpret_cast<char*>(indices.data + i + 0), sizeof(uint16_t));
+            out.write(reinterpret_cast<char*>(indices.data + i + 2), sizeof(uint16_t));
+            out.write(reinterpret_cast<char*>(indices.data + i + 1), sizeof(uint16_t));
+        }
 
         tinygltf::BufferView view{};
         view.buffer = buffer_id;
@@ -102,8 +114,9 @@ void WorldExporter::export_static_mesh(const fs::path& mesh_path, helpers::UStat
         auto stride = buf.VertexData->stride();
         size_t size_in_bytes = buf.NumVertices * sizeof(FVector);
         for (size_t i = 0; i < buf.NumVertices; ++i) {
-            char* pos = reinterpret_cast<char*>(data + i * stride);
-            out.write(pos, sizeof(FVector));
+            const auto& pos = *reinterpret_cast<FVector*>(data + i * stride);
+            FVector p{-(pos.Y * 0.01F), pos.Z * 0.01F, pos.X * 0.01F};
+            out.write(reinterpret_cast<char*>(&p), sizeof(FVector));
         }
 
         tinygltf::BufferView view{};
