@@ -53,6 +53,7 @@ AngleTable lut{};
 
 glm::mat4 create_rot_matrix(const FRotator& rot) {
     glm::mat4 mat{};
+
     float SR = lut.sin_tab(rot.Roll);
     float SP = lut.sin_tab(rot.Pitch);
     float SY = lut.sin_tab(rot.Yaw);
@@ -75,6 +76,7 @@ glm::mat4 create_rot_matrix(const FRotator& rot) {
     mat[2][2] = CR * CP;
     mat[3][2] = 0.0F;
 
+    // assuming all rotations are around 0,0,0
     mat[0][3] = 0.0F;
     mat[1][3] = 0.0F;
     mat[2][3] = 0.0F;
@@ -115,21 +117,24 @@ void WorldExporter::export_static_mesh_component(StaticMeshComponent* comp) {
     const auto& scale3d = *reinterpret_cast<FVector*>(wscale3d.base.get());
     node.scale = {(scale3d.Y * scale), (scale3d.Z * scale), (scale3d.X * scale)};
 
+    // Apply the rotation
     auto wrot = obj->get<UFunction, BoundFunction>(fn_get_rotation).call<ZStructProperty>();
     const auto& rot = *reinterpret_cast<FRotator*>(wrot.base.get());
 
-    {
-        glm::mat4 ue_rot = create_rot_matrix(rot);
-        glm::mat4 C = glm::mat4(
-            glm::vec4{0, 0, 1, 0},
-            glm::vec4{1, 0, 0, 0},
-            glm::vec4{0, 1, 0, 0},
-            glm::vec4{0, 0, 0, 1}
-        );
-        glm::mat4 gltf = C * ue_rot * glm::transpose(C);
-        glm::quat q = glm::normalize(glm::quat_cast(gltf));
-        node.rotation = {-q.x, q.y, q.z, q.w};
-    }
+    // create the base unreal style rotation matrix
+    glm::mat4 ue_rot = create_rot_matrix(rot);
+    // need to define a transition matrix since ue uses a different base than glTF
+    glm::mat4 conv_mat = glm::mat4(
+        glm::vec4{0, 0, 1, 0},
+        glm::vec4{1, 0, 0, 0},
+        glm::vec4{0, 1, 0, 0},
+        glm::vec4{0, 0, 0, 1}
+    );
+    // https://en.wikipedia.org/wiki/Change_of_basis
+    glm::mat4 gltf = conv_mat * ue_rot * glm::transpose(conv_mat);
+    glm::quat q = glm::normalize(glm::quat_cast(gltf));
+    // -x here since there was an axis flip caused by the differing handedness
+    node.rotation = {-q.x, q.y, q.z, q.w};
 
     m_TheScene.nodes.push_back(m_TheModel.nodes.size());
     m_TheModel.nodes.push_back(node);

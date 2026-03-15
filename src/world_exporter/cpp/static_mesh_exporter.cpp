@@ -13,6 +13,19 @@ namespace world_exporter {
 
 using namespace helpers;
 
+namespace {
+struct ExportInfo {
+    tinygltf::Model* model;
+    tinygltf::Primitive* primitive;
+    std::ofstream* out;
+    size_t offset;
+};
+
+void export_index_buffer(ExportInfo& info, const FRawStaticIndexBuffer& buf);
+void export_position_buffer(ExportInfo& info, const FPositionVertexBuffer& buf);
+void export_uvnormal_buffer(ExportInfo& info, const FStaticMeshVertexBuffer& buf);
+}  // namespace
+
 void WorldExporter::export_static_meshes() {
     fs::path static_mesh_dir = m_RootDir / "static_meshes";
     fs::create_directory(static_mesh_dir);
@@ -41,8 +54,6 @@ void WorldExporter::export_static_mesh(const fs::path& mesh_path, helpers::UStat
         return;
     }
 
-    // TODO: we can also export the colour buffer not sure how much it is used though
-
     auto* model = mesh->LodModels.at(0);
 
     // just as a first pass sanity check
@@ -51,160 +62,171 @@ void WorldExporter::export_static_mesh(const fs::path& mesh_path, helpers::UStat
         || model->IndexBuffer.bIsInitialised == 0
         || model->PositionVertexBuffer.bIsInitialised == 0
         || model->VertexBuffer.bIsInitialised == 0
+        // not a guarantee that the vertex data is triangulated but should avoid a crash
         || (model->IndexBuffer.Indices.size() % 3) != 0
     ) {
         LOG(INFO, "LOD[0] does not seem to be setup/ready for {} - skipping", mesh->Name);
         return;
     }
 
-    // TODO: maybe or maybe not a good idea to embed the buffer data directly into the gltf file.
-    //  Issue there is duplicated data for every .gltf file at the cost of basically zero
-    //  dependencies.
     tinygltf::Buffer buffer{};
     tinygltf::Primitive primitive{};
     primitive.material = 0;
     primitive.mode = TINYGLTF_MODE_TRIANGLES;
     buffer.uri = fs::relative(mesh_path, m_RootDir).string();
-    size_t buffer_id = m_TheModel.buffers.size();
 
     std::ofstream out{mesh_path, std::ios::binary | std::ios::trunc};
-    size_t offset{0};
 
-    {  // write all indices to the file
+    ExportInfo export_info{
+        .model = &m_TheModel,
+        .primitive = &primitive,
+        .out = &out,
+        .offset = 0,
+    };
 
-        const auto& indices = model->IndexBuffer.Indices;
-        const auto size_in_bytes = indices.size() * sizeof(uint16_t);
-        for (size_t i = 0; i < indices.size(); i += 3) {
-            //      1
-            //     . .
-            //    0...2
-            //
-            //      2
-            //     . .
-            //    0...1
-            out.write(reinterpret_cast<char*>(indices.data + i + 0), sizeof(uint16_t));
-            out.write(reinterpret_cast<char*>(indices.data + i + 2), sizeof(uint16_t));
-            out.write(reinterpret_cast<char*>(indices.data + i + 1), sizeof(uint16_t));
-        }
-
-        tinygltf::BufferView view{};
-        view.buffer = buffer_id;
-        view.byteOffset = offset;
-        view.byteLength = size_in_bytes;
-        view.target = TINYGLTF_TARGET_ELEMENT_ARRAY_BUFFER;
-        offset += size_in_bytes;
-
-        // tell it how the buffer view needs to be interpreted
-        auto access = tinygltf::Accessor{};
-        access.bufferView = m_TheModel.bufferViews.size();
-        access.byteOffset = 0;
-        access.componentType = TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT;
-        access.count = indices.size();
-        access.type = TINYGLTF_TYPE_SCALAR;
-
-        primitive.indices = m_TheModel.accessors.size();
-
-        m_TheModel.bufferViews.push_back(view);
-        m_TheModel.accessors.push_back(access);
-    }
-
-    {  // write all vertices
-        auto& buf = model->PositionVertexBuffer;
-        auto data = buf.VertexData->data();
-        auto stride = buf.VertexData->stride();
-        size_t size_in_bytes = buf.NumVertices * sizeof(FVector);
-        for (size_t i = 0; i < buf.NumVertices; ++i) {
-            const auto& pos = *reinterpret_cast<FVector*>(data + i * stride);
-            FVector p{-(pos.Y * 0.01F), pos.Z * 0.01F, pos.X * 0.01F};
-            out.write(reinterpret_cast<char*>(&p), sizeof(FVector));
-        }
-
-        tinygltf::BufferView view{};
-        view.buffer = buffer_id;
-        view.byteOffset = offset;
-        view.byteLength = size_in_bytes;
-        view.target = TINYGLTF_TARGET_ARRAY_BUFFER;
-        offset += size_in_bytes;
-
-        tinygltf::Accessor access{};
-        access.bufferView = m_TheModel.bufferViews.size();
-        access.byteOffset = 0;
-        access.componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
-        access.count = buf.NumVertices;
-        access.type = TINYGLTF_TYPE_VEC3;
-
-        primitive.attributes["POSITION"] = m_TheModel.accessors.size();
-
-        m_TheModel.bufferViews.push_back(view);
-        m_TheModel.accessors.push_back(access);
-    }
-
-    // write all uvs
-    if (model->VertexBuffer.bUseFullPrecisionUVs != 0) {
-        auto& buf = model->VertexBuffer;
-        auto* data = buf.VertexData->data();
-        auto stride = buf.VertexData->stride();
-
-        size_t size_in_bytes{0};
-
-        for (size_t i = 0; i < buf.NumVertices; ++i) {
-            auto* vert = reinterpret_cast<TStaticMeshFullVertexFloat16UVs*>(data + i * stride);
-
-            // TODO: this one needs validating
-            FVector norm{0.0F, 0.0F, 0.0F};
-            out.write(reinterpret_cast<char*>(&norm), sizeof(FVector));
-
-            for (size_t j = 0; j < buf.NumTexCoords; ++j) {
-                FVector2D uv = vert->UVs[j].as_vec2();
-                out.write(reinterpret_cast<char*>(&uv), sizeof(FVector2D));
-            }
-            size_in_bytes += sizeof(FVector) + (sizeof(FVector2D) * buf.NumTexCoords);
-        }
-
-        tinygltf::BufferView view{};
-        view.buffer = buffer_id;
-        view.byteOffset = offset;
-        view.byteLength = size_in_bytes;
-        view.target = TINYGLTF_TARGET_ARRAY_BUFFER;
-        offset += size_in_bytes;
-
-        tinygltf::Accessor acc_normal{};
-        acc_normal.bufferView = m_TheModel.bufferViews.size();
-        acc_normal.byteOffset = 0;
-        acc_normal.componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
-        acc_normal.count = buf.NumVertices;
-        acc_normal.type = TINYGLTF_TYPE_VEC3;
-
-        // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#meshes
-        primitive.attributes["NORMAL"] = m_TheModel.accessors.size();
-        m_TheModel.accessors.push_back(acc_normal);
-
-        size_t uv_offset{sizeof(FVector)};
-        for (size_t i = 0; i < buf.NumTexCoords; ++i) {
-            tinygltf::Accessor uv{};
-            uv.bufferView = acc_normal.bufferView;
-            uv.byteOffset = uv_offset;
-            uv.componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
-            uv.count = buf.NumVertices;
-            uv.type = TINYGLTF_TYPE_VEC2;
-            uv_offset += sizeof(FVector2D);
-
-            primitive.attributes["TEXCOORD_" + std::to_string(i)] = m_TheModel.accessors.size();
-            m_TheModel.accessors.push_back(uv);
-        }
-        m_TheModel.bufferViews.push_back(view);
-    }
+    // TODO: this approach works for single-mesh models but multi-mesh/multi-material models will
+    //  require multiple primitives as they bind to a range of indices.
+    export_index_buffer(export_info, model->IndexBuffer);
+    export_position_buffer(export_info, model->PositionVertexBuffer);
+    export_uvnormal_buffer(export_info, model->VertexBuffer);
 
     tinygltf::Mesh the_mesh{};
     the_mesh.name = std::string{mesh->Name};
     the_mesh.primitives.push_back(primitive);
-    m_MeshMap[reinterpret_cast<uintptr_t>(mesh)] = m_TheModel.meshes.size();
+    m_MeshMap[reinterpret_cast<uintptr_t>(mesh)] = static_cast<int>(m_TheModel.meshes.size());
     m_TheModel.meshes.push_back(the_mesh);
 
-    // TODO: this is a hack and maybe we should just embed the buffer data into the gltf instead of
-    //  storing it separately
-    buffer.byte_length = offset;
+    buffer.byte_length = export_info.offset;
     m_TheModel.buffers.push_back(buffer);
 }
+
+namespace {
+
+void export_index_buffer(ExportInfo& info, const FRawStaticIndexBuffer& buf) {
+    const auto& indices = buf.Indices;
+    const auto size_in_bytes = indices.size() * sizeof(uint16_t);
+    for (size_t i = 0; i < indices.size(); i += 3) {
+        //      1
+        //     . .
+        //    0...2
+        //
+        //      2
+        //     . .
+        //    0...1
+        info.out->write(reinterpret_cast<char*>(indices.data + i + 0), sizeof(uint16_t));
+        info.out->write(reinterpret_cast<char*>(indices.data + i + 2), sizeof(uint16_t));
+        info.out->write(reinterpret_cast<char*>(indices.data + i + 1), sizeof(uint16_t));
+    }
+
+    tinygltf::BufferView view{};
+    view.buffer = static_cast<int>(info.model->buffers.size());
+    view.byteOffset = info.offset;
+    view.byteLength = size_in_bytes;
+    view.target = TINYGLTF_TARGET_ELEMENT_ARRAY_BUFFER;
+    info.offset = info.offset + size_in_bytes;
+
+    auto access = tinygltf::Accessor{};
+    access.bufferView = static_cast<int>(info.model->bufferViews.size());
+    access.byteOffset = 0;
+    access.componentType = TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT;
+    access.count = indices.size();
+    access.type = TINYGLTF_TYPE_SCALAR;
+
+    info.primitive->indices = static_cast<int>(info.model->accessors.size());
+
+    info.model->bufferViews.push_back(view);
+    info.model->accessors.push_back(access);
+}
+
+void export_position_buffer(ExportInfo& info, const FPositionVertexBuffer& buf) {
+    auto data = buf.VertexData->data();
+    auto stride = buf.VertexData->stride();
+    size_t size_in_bytes = buf.NumVertices * sizeof(FVector);
+    for (size_t i = 0; i < buf.NumVertices; ++i) {
+        const auto& pos = *reinterpret_cast<FVector*>(data + (i * stride));
+        FVector p{-(pos.Y * 0.01F), pos.Z * 0.01F, pos.X * 0.01F};
+        info.out->write(reinterpret_cast<char*>(&p), sizeof(FVector));
+    }
+
+    tinygltf::BufferView view{};
+    view.buffer = static_cast<int>(info.model->buffers.size());
+    view.byteOffset = info.offset;
+    view.byteLength = size_in_bytes;
+    view.target = TINYGLTF_TARGET_ARRAY_BUFFER;
+    info.offset = info.offset + size_in_bytes;
+
+    tinygltf::Accessor access{};
+    access.bufferView = static_cast<int>(info.model->bufferViews.size());
+    access.byteOffset = 0;
+    access.componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
+    access.count = buf.NumVertices;
+    access.type = TINYGLTF_TYPE_VEC3;
+
+    info.primitive->attributes["POSITION"] = static_cast<int>(info.model->accessors.size());
+
+    info.model->bufferViews.push_back(view);
+    info.model->accessors.push_back(access);
+}
+
+void export_uvnormal_buffer(ExportInfo& info, const FStaticMeshVertexBuffer& buf) {
+    // write all uvs
+    if (buf.bUseFullPrecisionUVs == 0) {
+        return;
+    }
+    auto* data = buf.VertexData->data();
+    auto stride = buf.VertexData->stride();
+
+    size_t size_in_bytes{0};
+
+    for (size_t i = 0; i < buf.NumVertices; ++i) {
+        auto* vert = reinterpret_cast<TStaticMeshFullVertexFloat16UVs*>(data + (i * stride));
+
+        // TODO: need to implement this one
+        FVector norm{0.0F, 0.0F, 0.0F};
+        info.out->write(reinterpret_cast<char*>(&norm), sizeof(FVector));
+
+        for (size_t j = 0; j < buf.NumTexCoords; ++j) {
+            // NOLINTNEXTLINE(*-pro-bounds-constant-array-index)
+            FVector2D uv = vert->UVs[j].as_vec2();
+            info.out->write(reinterpret_cast<char*>(&uv), sizeof(FVector2D));
+        }
+        size_in_bytes += sizeof(FVector) + (sizeof(FVector2D) * buf.NumTexCoords);
+    }
+
+    tinygltf::BufferView view{};
+    view.buffer = static_cast<int>(info.model->buffers.size());
+    view.byteOffset = info.offset;
+    view.byteLength = size_in_bytes;
+    view.target = TINYGLTF_TARGET_ARRAY_BUFFER;
+    info.offset = info.offset + size_in_bytes;
+
+    tinygltf::Accessor acc_normal{};
+    acc_normal.bufferView = static_cast<int>(info.model->bufferViews.size());
+    acc_normal.byteOffset = 0;
+    acc_normal.componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
+    acc_normal.count = buf.NumVertices;
+    acc_normal.type = TINYGLTF_TYPE_VEC3;
+
+    // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#meshes
+    info.primitive->attributes["NORMAL"] = static_cast<int>(info.model->accessors.size());
+    info.model->accessors.push_back(acc_normal);
+
+    size_t uv_offset{sizeof(FVector)};
+    for (size_t i = 0; i < buf.NumTexCoords; ++i) {
+        tinygltf::Accessor uv{};
+        uv.bufferView = acc_normal.bufferView;
+        uv.byteOffset = uv_offset;
+        uv.componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
+        uv.count = buf.NumVertices;
+        uv.type = TINYGLTF_TYPE_VEC2;
+        uv_offset += sizeof(FVector2D);
+
+        info.primitive->attributes["TEXCOORD_" + std::to_string(i)] = static_cast<int>(info.model->accessors.size());
+        info.model->accessors.push_back(uv);
+    }
+    info.model->bufferViews.push_back(view);
+}
+
+}  // namespace
 
 }  // namespace world_exporter
