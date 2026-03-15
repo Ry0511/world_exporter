@@ -27,6 +27,8 @@ ZStructProperty* prop_scale3d{nullptr};      // Scale3D
 UFunction* fn_get_position{nullptr};         // GetPosition
 UFunction* fn_get_rotation{nullptr};         // GetRotation
 
+// NOLINTBEGIN(*-pro-bounds-constant-array-index,*-math-missing-parentheses)
+
 struct AngleTable {
     static constexpr int ANGLE_SHIFT = 2;
     static constexpr int ANGLE_BITS = 14;
@@ -85,6 +87,8 @@ glm::mat4 create_rot_matrix(const FRotator& rot) {
     return mat;
 }
 
+// NOLINTEND(*-pro-bounds-constant-array-index,*-math-missing-parentheses)
+
 }  // namespace
 
 void WorldExporter::export_static_mesh_components() {
@@ -136,7 +140,7 @@ void WorldExporter::export_static_mesh_component(StaticMeshComponent* comp) {
     // -x here since there was an axis flip caused by the differing handedness
     node.rotation = {-q.x, q.y, q.z, q.w};
 
-    m_TheScene.nodes.push_back(m_TheModel.nodes.size());
+    m_TheScene.nodes.push_back(static_cast<int>(m_TheModel.nodes.size()));
     m_TheModel.nodes.push_back(node);
 }
 
