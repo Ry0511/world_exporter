@@ -79,6 +79,10 @@ struct FMatrix {
     float M[4][4];
 };
 
+struct FColor {
+    uint8_t B, G, R, A;
+};
+
 // for reference
 // https://en.wikipedia.org/wiki/IEEE_754
 // https://en.wikipedia.org/wiki/Half-precision_floating-point_format
@@ -169,7 +173,7 @@ struct FStaticMeshLodInfo {
 struct FRenderResource {
     uintptr_t* vftable;
     uint32_t _1[3];
-    uint32_t bIsInitialised;
+    uint32_t bIsInitialised : 1;
 };
 
 struct FIndexBuffer : FRenderResource {
@@ -221,8 +225,10 @@ struct FPositionVertexBuffer : FVertexBuffer {
     uint32_t NumVertices;
 };
 
+struct FColorVertexData : TStaticMeshVertexData<FColor> {};
+
 struct FColourVertexBuffer : FVertexBuffer {
-    void* VertexData;
+    FColorVertexData* VertexData;
     uint8_t* Data;
     uint32_t Stride;
     uint32_t NumVertices;

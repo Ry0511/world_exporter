@@ -23,6 +23,7 @@ struct ExportInfo {
 
 void export_index_buffer(ExportInfo& info, const FRawStaticIndexBuffer& buf);
 void export_position_buffer(ExportInfo& info, const FPositionVertexBuffer& buf);
+void export_colour_buffer(ExportInfo& info, const FColourVertexBuffer& buf);
 void export_uvnormal_buffer(ExportInfo& info, const FStaticMeshVertexBuffer& buf);
 }  // namespace
 
@@ -88,6 +89,7 @@ void WorldExporter::export_static_mesh(const fs::path& mesh_path, helpers::UStat
     //  require multiple primitives as they bind to a range of indices.
     export_index_buffer(export_info, model->IndexBuffer);
     export_position_buffer(export_info, model->PositionVertexBuffer);
+    export_colour_buffer(export_info, model->ColourVertexBuffer);
     export_uvnormal_buffer(export_info, model->VertexBuffer);
 
     tinygltf::Mesh the_mesh{};
@@ -166,6 +168,50 @@ void export_position_buffer(ExportInfo& info, const FPositionVertexBuffer& buf) 
 
     info.model->bufferViews.push_back(view);
     info.model->accessors.push_back(access);
+}
+
+void export_colour_buffer(ExportInfo& info, const FColourVertexBuffer& buf) {
+
+    // TODO: null check here is required to avoid a crash - might need this in more places
+    if (buf.bIsInitialised == 0 || buf.VertexData == nullptr) {
+        return;
+    }
+
+    uint8_t* data = buf.VertexData->data();
+    auto stride = buf.VertexData->stride();
+
+    if (stride != sizeof(FColor)) {
+        LOG(WARNING, "colour buffer does not fit into FColor");
+        return;
+    }
+
+    size_t size_in_bytes = buf.NumVertices * sizeof(FColor);
+
+    for (size_t i = 0; i < buf.NumVertices; ++i) {
+        const auto& col = *reinterpret_cast<FColor*>(data + (i * stride));
+        uint8_t rgba[]{col.R, col.G, col.B, col.A};
+        info.out->write(reinterpret_cast<const char*>(&rgba[0]), sizeof(FColor));
+    }
+
+    tinygltf::BufferView view{};
+    view.buffer = static_cast<int>(info.model->buffers.size());
+    view.byteOffset = info.offset;
+    view.byteLength = size_in_bytes;
+    view.target = TINYGLTF_TARGET_ARRAY_BUFFER;
+    info.offset = info.offset + size_in_bytes;
+
+    tinygltf::Accessor access{};
+    access.bufferView = static_cast<int>(info.model->bufferViews.size());
+    access.byteOffset = 0;
+    access.componentType = TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE;
+    access.count = buf.NumVertices;
+    access.type = TINYGLTF_TYPE_VEC4;
+    access.normalized = true;
+    info.primitive->attributes["COLOR_0"] = static_cast<int>(info.model->accessors.size());
+
+    info.offset = info.offset + size_in_bytes;
+    info.model->accessors.push_back(access);
+    info.model->bufferViews.push_back(view);
 }
 
 void export_uvnormal_buffer(ExportInfo& info, const FStaticMeshVertexBuffer& buf) {
