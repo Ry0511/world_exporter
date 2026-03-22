@@ -59,10 +59,9 @@ void WorldExporter::export_static_mesh(const fs::path& mesh_path, helpers::UStat
 
     // just as a first pass sanity check
     if (
-        model->bNeedsCpuAccess == 0
-        || model->IndexBuffer.bIsInitialised == 0
-        || model->PositionVertexBuffer.bIsInitialised == 0
-        || model->VertexBuffer.bIsInitialised == 0
+        model->IndexBuffer.Indices.data == nullptr
+        || model->PositionVertexBuffer.VertexData == nullptr
+        || model->VertexBuffer.VertexData == nullptr
         // not a guarantee that the vertex data is triangulated but should avoid a crash
         || (model->IndexBuffer.Indices.size() % 3) != 0
     ) {
@@ -171,7 +170,6 @@ void export_position_buffer(ExportInfo& info, const FPositionVertexBuffer& buf) 
 }
 
 void export_colour_buffer(ExportInfo& info, const FColourVertexBuffer& buf) {
-
     // TODO: null check here is required to avoid a crash - might need this in more places
     if (buf.bIsInitialised == 0 || buf.VertexData == nullptr) {
         return;

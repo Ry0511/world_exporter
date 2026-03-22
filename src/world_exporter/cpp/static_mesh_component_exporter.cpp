@@ -34,18 +34,15 @@ struct AngleTable {
     static constexpr int ANGLE_BITS = 14;
     static constexpr int NUM_ANGLES = 16384;
     std::array<float, NUM_ANGLES> lut{};
-
     AngleTable() {
         constexpr auto PI = glm::pi<float>();
         for (int i = 0; i < NUM_ANGLES; i++) {
             lut[i] = std::sinf(static_cast<float>(i) * 2.0F * PI / static_cast<float>(NUM_ANGLES));
         }
     }
-
     float sin_tab(int i) const noexcept {
         return lut[((i >> ANGLE_SHIFT) & (NUM_ANGLES - 1))];
     }
-
     float cos_tab(int i) const noexcept {
         return lut[(((i + 16384) >> ANGLE_SHIFT) & (NUM_ANGLES - 1))];
     }
@@ -54,7 +51,7 @@ struct AngleTable {
 AngleTable lut{};
 
 glm::mat4 create_rot_matrix(const FRotator& rot) {
-    glm::mat4 mat{};
+    glm::mat4 mat{1.0F};
 
     float SR = lut.sin_tab(rot.Roll);
     float SP = lut.sin_tab(rot.Pitch);
@@ -64,25 +61,16 @@ glm::mat4 create_rot_matrix(const FRotator& rot) {
     float CY = lut.cos_tab(rot.Yaw);
 
     mat[0][0] = CP * CY;
-    mat[1][0] = CP * SY;
-    mat[2][0] = SP;
-    mat[3][0] = 0.0F;
+    mat[0][1] = CP * SY;
+    mat[0][2] = SP;
 
-    mat[0][1] = SR * SP * CY - CR * SY;
+    mat[1][0] = SR * SP * CY - CR * SY;
     mat[1][1] = SR * SP * SY + CR * CY;
-    mat[2][1] = -SR * CP;
-    mat[3][1] = 0.0F;
+    mat[1][2] = -SR * CP;
 
-    mat[0][2] = -(CR * SP * CY + SR * SY);
-    mat[1][2] = CY * SR - CR * SP * SY;
+    mat[2][0] = -(CR * SP * CY + SR * SY);
+    mat[2][1] = CY * SR - CR * SP * SY;
     mat[2][2] = CR * CP;
-    mat[3][2] = 0.0F;
-
-    // assuming all rotations are around 0,0,0
-    mat[0][3] = 0.0F;
-    mat[1][3] = 0.0F;
-    mat[2][3] = 0.0F;
-    mat[3][3] = 1.0F;
 
     return mat;
 }
@@ -119,26 +107,25 @@ void WorldExporter::export_static_mesh_component(StaticMeshComponent* comp) {
     auto scale = get_property(prop_scale, 0, reinterpret_cast<uintptr_t>(obj));
     auto wscale3d = get_property(prop_scale3d, 0, reinterpret_cast<uintptr_t>(obj));
     const auto& scale3d = *reinterpret_cast<FVector*>(wscale3d.base.get());
-    node.scale = {(scale3d.Y * scale), (scale3d.Z * scale), (scale3d.X * scale)};
+    glm::vec3 vscale{(scale3d.X * scale), (scale3d.Y * scale), (scale3d.Z * scale)};
+    node.scale = {vscale.y, vscale.z, vscale.x};
 
     // Apply the rotation
     auto wrot = obj->get<UFunction, BoundFunction>(fn_get_rotation).call<ZStructProperty>();
     const auto& rot = *reinterpret_cast<FRotator*>(wrot.base.get());
 
-    // create the base unreal style rotation matrix
-    glm::mat4 ue_rot = create_rot_matrix(rot);
-    // need to define a transition matrix since ue uses a different base than glTF
-    glm::mat4 conv_mat = glm::mat4(
-        glm::vec4{0, 0, 1, 0},
-        glm::vec4{1, 0, 0, 0},
-        glm::vec4{0, 1, 0, 0},
-        glm::vec4{0, 0, 0, 1}
-    );
-    // https://en.wikipedia.org/wiki/Change_of_basis
-    glm::mat4 gltf = conv_mat * ue_rot * glm::transpose(conv_mat);
-    glm::quat q = glm::normalize(glm::quat_cast(gltf));
-    // -x here since there was an axis flip caused by the differing handedness
-    node.rotation = {-q.x, q.y, q.z, q.w};
+    // TODO: This does not account for the effects that negative scale has on the final rotated
+    //  output so this only going to work for objects whose scale is greater than zero.
+    glm::mat4 basis{
+        glm::vec4{+0, +0, +1, +0},
+        glm::vec4{-1, +0, +0, +0},
+        glm::vec4{+0, +1, +0, +0},
+        glm::vec4{+0, +0, +0, +1},
+    };
+    glm::mat4 rot_mat = create_rot_matrix(rot);
+    rot_mat = basis * rot_mat * glm::inverse(basis);
+    glm::quat q = glm::normalize(glm::quat_cast(rot_mat));
+    node.rotation = {q.x, q.y, q.z, q.w};
 
     m_TheScene.nodes.push_back(static_cast<int>(m_TheModel.nodes.size()));
     m_TheModel.nodes.push_back(node);
