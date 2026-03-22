@@ -10,7 +10,7 @@
 #include "glm/gtc/quaternion.hpp"
 
 #include "world_exporter/cpp/world_exporter.h"
-#include "world_exporter/cpp/helpers.h"
+#include "world_exporter/cpp/util/static_mesh.h"
 
 #include "unrealsdk/unreal/properties/zobjectproperty.h"
 #include "unrealsdk/unreal/properties/zstructproperty.h"

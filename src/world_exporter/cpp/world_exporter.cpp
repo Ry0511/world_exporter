@@ -6,7 +6,6 @@
 
 #include "world_exporter/cpp/world_exporter.h"
 
-#include "world_exporter/cpp/helpers.h"
 #include "unrealsdk/unrealsdk.h"
 #include "unrealsdk/unreal/find_class.h"
 #include "unrealsdk/unreal/properties/zboolproperty.h"

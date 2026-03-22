@@ -5,7 +5,7 @@
 //
 
 #include "world_exporter/cpp/world_exporter.h"
-#include "world_exporter/cpp/helpers.h"
+#include "world_exporter/cpp/util/static_mesh.h"
 
 #include "tinygltf/tiny_gltf.h"
 
@@ -170,7 +170,6 @@ void export_position_buffer(ExportInfo& info, const FPositionVertexBuffer& buf) 
 }
 
 void export_colour_buffer(ExportInfo& info, const FColourVertexBuffer& buf) {
-    // TODO: null check here is required to avoid a crash - might need this in more places
     if (buf.bIsInitialised == 0 || buf.VertexData == nullptr) {
         return;
     }

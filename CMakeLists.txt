@@ -6,15 +6,9 @@ set(TINYGLTF_INSTALL OFF CACHE INTERNAL "" FORCE)
 add_subdirectory(vendor/tinygltf EXCLUDE_FROM_ALL)
 
 add_subdirectory(vendor/pyunrealsdk EXCLUDE_FROM_ALL)
-pyunrealsdk_add_module(
-    world_exporter
-    "src/world_exporter/world_exporter.cpp"
-    "src/world_exporter/cpp/world_exporter.cpp"
-    "src/world_exporter/cpp/static_mesh_exporter.cpp"
-    "src/world_exporter/cpp/static_mesh_component_exporter.cpp"
-    "src/world_exporter/cpp/tinygltf_init.cpp"
-    "src/world_exporter/cpp/helpers.cpp"
-)
+file(GLOB_RECURSE WORLD_EXPORTER_SOURCES "${PROJECT_SOURCE_DIR}/src/world_exporter/cpp/*.cpp")
+message(STATUS "world_exporter source files ${WORLD_EXPORTER_SOURCES}")
+pyunrealsdk_add_module(world_exporter ${WORLD_EXPORTER_SOURCES})
 target_include_directories(world_exporter PUBLIC ./src)
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE "vendor")
 
