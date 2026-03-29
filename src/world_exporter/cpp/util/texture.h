@@ -7,10 +7,35 @@
 #define WORLD_EXPORTER_TEXTURE_H
 
 #include "pyunrealsdk/pch.h"
+#include "world_exporter/cpp/util/rhi.h"
 
 namespace world_exporter::helpers {
 
-struct FTexture2DResource;
+////////////////////////////////////////////////////////////////////////////////
+// | HARDWARE TEXTURE INFO |
+////////////////////////////////////////////////////////////////////////////////
+
+UNREALSDK_UNREAL_STRUCT_PADDING_PUSH()
+
+struct FTexture : FRenderResource {
+    TDynamicRHIResourceReference TextureRhi; // FD3D9Texture**
+    TDynamicRHIResourceReference SamplerRhi; // ?
+    uint8_t _3[36];
+};
+
+struct FTextureResource : FTexture {
+    uint8_t _3[4];
+};
+
+struct FTexture2DResource : FTextureResource {
+    unrealsdk::unreal::UObject* Owner;  // likely Texture2D
+};
+
+UNREALSDK_UNREAL_STRUCT_PADDING_POP()
+
+////////////////////////////////////////////////////////////////////////////////
+// | HELPER FUNCTIONS |
+////////////////////////////////////////////////////////////////////////////////
 
 struct ExportedTexture {
     uint32_t width;

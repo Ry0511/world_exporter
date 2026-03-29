@@ -4,13 +4,8 @@
 // Author     : -Ry
 //
 
-#include <algorithm>
-
 #include "pyunrealsdk/pch.h"
-
 #include "world_exporter/cpp/util/texture.h"
-#include "world_exporter/cpp/util/materials.h"
-#include "world_exporter/cpp/util/rhi.h"
 
 #include "s3tc-dxt-decompression/s3tc.h"
 
@@ -120,7 +115,6 @@ ExportedTexture export_texture_resource(FTexture2DResource* resource) {
         throw std::runtime_error{"failed to lock surface zero"};
     }
 
-    // auto* abgr = new uint8_t[desc.Width * desc.Height * 4];
     ExportedTexture out{
         desc.Width,
         desc.Height,

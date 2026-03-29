@@ -25,26 +25,26 @@ void export_world(const fs::path& dest) {
 }
 
 void impl_testing(const std::wstring& obj_path) {
-    auto cls = find_class(L"Texture2D"_fn);
-    unreal::UObject* obj = find_object(cls, obj_path);
+    auto tex2d_class = find_class(L"Texture2D"_fn);
+    unreal::UObject* obj = find_object(tex2d_class, obj_path);
 
     if (obj == nullptr) {
         LOG(INFO, L" > failed to find {}", obj_path);
         return;
     }
 
-    if (obj->Class() != cls) {
+    if (obj->Class() != tex2d_class) {
         LOG(
             INFO,
             " > object found is of class {} but {} is required",
             obj->Class()->Name(),
-            cls->Name()
+            tex2d_class->Name()
         );
         return;
     }
 
     using namespace world_exporter::helpers;
-    auto* prop_resource = cls->find_prop_and_validate<ZStructProperty>(L"Resource"_fn);
+    auto* prop_resource = tex2d_class->find_prop_and_validate<ZStructProperty>(L"Resource"_fn);
     auto wres = get_property(prop_resource, 0, reinterpret_cast<uintptr_t>(obj));
     auto* res = *reinterpret_cast<FTexture2DResource**>(wres.base.get());
 
@@ -71,13 +71,12 @@ void impl_testing(const std::wstring& obj_path) {
         out << "P6\n"
             << img.width << " " << img.height << "\n255\n";
         for (size_t i = 0; i < (img.width * img.height); ++i) {
-            const uint8_t* px = img.data.get() + i * 4;
+            const uint8_t* px = img.data.get() + (i * 4);
             const uint8_t rgba[]{px[3], px[2], px[1], px[0]};
             out.write(reinterpret_cast<const char*>(rgba), 3);
         }
 
         LOG(INFO, "exported image {}x{} from {}", img.width, img.height, obj_path);
-
     } catch (const std::exception& err) {
         LOG(INFO, "failed to export texture ~ {}", err.what());
     }

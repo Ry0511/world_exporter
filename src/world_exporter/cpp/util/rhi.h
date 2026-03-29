@@ -40,7 +40,6 @@ struct TD3D9Texture : FRefCountedObject, TRefCountPtr<D3DTextureType>, TDynamicR
     uint32_t bSRGB : 1;
     uint32_t bDynamic : 1;
 };
-
 using FD3D9Texture = TD3D9Texture<IDirect3DBaseTexture9>;
 
 };  // namespace helpers
