@@ -8,9 +8,11 @@ add_subdirectory(vendor/tinygltf EXCLUDE_FROM_ALL)
 add_subdirectory(vendor/pyunrealsdk EXCLUDE_FROM_ALL)
 file(GLOB_RECURSE WORLD_EXPORTER_SOURCES "${PROJECT_SOURCE_DIR}/src/world_exporter/cpp/*.cpp")
 message(STATUS "world_exporter source files ${WORLD_EXPORTER_SOURCES}")
+
 pyunrealsdk_add_module(world_exporter ${WORLD_EXPORTER_SOURCES})
 target_include_directories(world_exporter PUBLIC ./src)
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE "vendor")
+target_precompile_headers(world_exporter PRIVATE "${PROJECT_SOURCE_DIR}/src/world_exporter/cpp/pch.h")
 
 install(
     TARGETS world_exporter
@@ -28,6 +30,9 @@ install(
 set(GLM_ENABLE_CXX_20 ON CACHE INTERNAL "" FORCE)
 add_subdirectory(vendor/glm EXCLUDE_FROM_ALL)
 target_link_libraries(world_exporter PRIVATE glm::glm)
+target_link_libraries(world_exporter PRIVATE dxguid.lib)
+
+target_sources(world_exporter PRIVATE "${PROJECT_SOURCE_DIR}/vendor/s3tc-dxt-decompression/s3tc.cpp")
 
 add_executable(tinygltftest "./src/world_exporter/other/tinygltftest.cpp")
 target_include_directories(tinygltftest PRIVATE "vendor")

@@ -18,6 +18,12 @@ UNREALSDK_UNREAL_STRUCT_PADDING_PUSH()
 namespace helpers {
 using namespace unrealsdk;
 
+//
+// Some helpers which I am not sure if they will ever be used. Perhaps at somepoint we will split
+// out objects into scenes based on levels but it depends on how much information is captured in a
+// level. I have seen certain levels be dedicated to sound which likely don't contain anything visually.
+//
+
 struct ULevel : game::bl2::UObject {
     TArrayWithOwner<unreal::UObject*> Actors;
     FURL Url;

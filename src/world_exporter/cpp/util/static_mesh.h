@@ -119,7 +119,7 @@ struct FRawStaticIndexBuffer : FIndexBuffer {
 ////////////////////////////////////////////////////////////////////////////////
 
 struct FStaticMeshLodElement {
-    void* Material;
+    unreal::UObject* Material;
     uint32_t bEnableShadowCasting;
     uint32_t bSelected;
     int32_t bEnableCollision : 1;

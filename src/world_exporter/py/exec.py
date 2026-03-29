@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 from unrealsdk.unreal import UObject, WrappedStruct
-from unrealsdk import find_all, find_class
+from unrealsdk import find_all, find_class, find_enum
 
 file_dir = Path(__file__).parent.absolute()
 export_dir = file_dir / "exports"
@@ -24,7 +24,17 @@ if str(file_dir) not in sys.path:
 
 from world_exporter import *
 # export_static_meshes(export_dir / "ffssanct.obj")
-export_world(export_dir)
+# export_world(export_dir)
+
+unique_types = set()
+for obj in find_all("Texture2D", True):
+    if int(obj.ObjectFlags) & (0x200 | 0x400):
+        continue
+    unique_types.add(obj.Format)
+    if obj.Format in (2,5,7,):
+        testing(obj._path_name())
+
+print(unique_types)
 
 #
 # i = 0
