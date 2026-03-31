@@ -37,6 +37,13 @@ UNREALSDK_UNREAL_STRUCT_PADDING_POP()
 // | HELPER FUNCTIONS |
 ////////////////////////////////////////////////////////////////////////////////
 
+// TODO
+//  Standardise pixel data to be RGBA since thats what glTF expects
+//  Normal textures are expected to be in the form RGB https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#additional-textures
+//  Ambient, Roughness, and Metallic are packed into a single texture with R = Ambient, G = Roughness, and B = Metallic
+//  For simplicity images should use either image/png or image/jpeg
+//  Need to export the sampler settings i.e., min/mag filters and wrapping modes
+
 struct ExportedTexture {
     uint32_t width;
     uint32_t height;
