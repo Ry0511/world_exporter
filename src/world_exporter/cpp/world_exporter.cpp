@@ -58,7 +58,7 @@ void WorldExporter::export_world(const fs::path& dest) {
         &m_TheModel,
         (dest / "export.gltf").string(),
         false,  // embedImages
-        false,  // embedBuffers
+        true,   // embedBuffers
         true,   // prettyPrint
         false   // writeBinary
     );

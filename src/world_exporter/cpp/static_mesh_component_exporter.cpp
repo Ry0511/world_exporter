@@ -95,8 +95,18 @@ void WorldExporter::export_static_mesh_component(StaticMeshComponent* comp) {
     auto* obj = reinterpret_cast<UObject*>(comp);
     UObject* mesh = get_property(prop_static_mesh, 0, reinterpret_cast<uintptr_t>(comp));
 
+    auto it = m_MeshMap.find(reinterpret_cast<uintptr_t>(mesh));
+    if (it == m_MeshMap.end()) {
+        LOG(
+            WARNING,
+            "could not export mesh instance {} because the mesh has not been exported",
+            obj->get_path_name()
+        );
+        return;
+    }
+
     tinygltf::Node node{};
-    node.mesh = m_MeshMap[reinterpret_cast<uintptr_t>(mesh)];
+    node.mesh = it->second;
 
     // Apply the translation
     auto wpos = obj->get<UFunction, BoundFunction>(fn_get_position).call<ZStructProperty>();

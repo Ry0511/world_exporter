@@ -37,8 +37,7 @@ struct FFragmentRange {
 
 struct FRenderResource {
     uintptr_t* vftable;
-    uint32_t _1[3];
-    uint32_t bIsInitialised : 1;
+    uint32_t _1[4];
 };
 
 struct FVertexBuffer : FRenderResource {

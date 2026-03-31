@@ -25,7 +25,7 @@ void export_world(const fs::path& dest) {
 }
 
 void impl_testing(const std::wstring& obj_path) {
-    auto tex2d_class = find_class(L"Texture2D"_fn);
+    auto* tex2d_class = find_class(L"Texture2D"_fn);
     unreal::UObject* obj = find_object(tex2d_class, obj_path);
 
     if (obj == nullptr) {
