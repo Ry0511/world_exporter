@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
 project(world_exporter VERSION 1.0.0)
 
+# TODO: this file is quite messy and hard to follow - just like all cmake files but it doesn't have to be
+
 set(TINYGLTF_HEADER_ONLY ON CACHE INTERNAL "" FORCE)
 set(TINYGLTF_INSTALL OFF CACHE INTERNAL "" FORCE)
 add_subdirectory(vendor/tinygltf EXCLUDE_FROM_ALL)
