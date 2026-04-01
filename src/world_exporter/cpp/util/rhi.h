@@ -15,26 +15,32 @@ UNREALSDK_UNREAL_STRUCT_PADDING_PUSH()
 namespace helpers {
 using namespace unrealsdk;
 
-struct TDynamicRHIResource {};
+struct TDynamicRHIResource {
+    WORLD_EXPORTER_DISALLOW_CREATE(TDynamicRHIResource);
+};
 
 // proxy for an implementation defined handle
 struct TDynamicRHIResourceReference {
+    WORLD_EXPORTER_DISALLOW_CREATE(TDynamicRHIResourceReference);
     TDynamicRHIResource* Reference;
     template <class T>
     T* as() const noexcept { return static_cast<T*>(Reference); }
 };
 
 struct FRefCountedObject {
+    WORLD_EXPORTER_DISALLOW_CREATE(FRefCountedObject);
     int NumRefs;
 };
 
 template <class T>
 struct TRefCountPtr {
+    WORLD_EXPORTER_DISALLOW_CREATE(TRefCountPtr);
     T* Ref;
 };
 
 template<class D3DTextureType>
 struct TD3D9Texture : FRefCountedObject, TRefCountPtr<D3DTextureType>, TDynamicRHIResource {
+    WORLD_EXPORTER_DISALLOW_CREATE(TD3D9Texture);
     int32_t PixelFormat; // Texture::EPixelFormat 2,5,7 are relevant
     int32_t MemorySize;
     uint32_t bSRGB : 1;

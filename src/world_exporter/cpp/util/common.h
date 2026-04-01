@@ -6,12 +6,10 @@
 #ifndef WORLD_EXPORTER_COMMON_H
 #define WORLD_EXPORTER_COMMON_H
 
-#include "pyunrealsdk/pch.h"
+#include "world_exporter/cpp/pch.h"
 #include "unrealsdk/game/bl2/offsets.h"
 
 namespace world_exporter {
-
-namespace fs = std::filesystem;
 
 UNREALSDK_UNREAL_STRUCT_PADDING_PUSH()
 namespace helpers {
@@ -24,33 +22,16 @@ using namespace unrealsdk;
 
 template <class T>
 struct TArrayWithOwner : unreal::TArray<T> {
+    WORLD_EXPORTER_DISALLOW_CREATE(TArrayWithOwner);
     unreal::UObject* Owner;
 };
 
 template <class T>
 struct TResourceArray {
+    WORLD_EXPORTER_DISALLOW_CREATE(TResourceArray);
     void* vftable;
     unreal::TArray<T> Data;
     uint32_t bNeedsCpuAccess;
-};
-
-template <class T, auto SmallBufferSize>
-struct TArrayInline {
-    T InlineData[SmallBufferSize];
-    T* SecondaryData;
-    int32_t Length;
-    int32_t Count;
-
-    T* at(size_t i) {
-        if (Count < SmallBufferSize) {
-            return InlineData[i];
-        }
-        return SecondaryData[i];
-    }
-
-    T& operator[](size_t i) {
-        return *at(i);
-    }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -129,10 +110,11 @@ struct FPackedNormal {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-// |  |
+// | OTHERS |
 ////////////////////////////////////////////////////////////////////////////////
 
 struct FURL {
+    WORLD_EXPORTER_DISALLOW_CREATE(FURL);
     unreal::UnmanagedFString Protocol;
     unreal::UnmanagedFString Host;
     int32_t Port;
@@ -142,7 +124,9 @@ struct FURL {
     bool Valid;
 };
 
+// TODO: this is unused and can be deleted?
 struct Actor : game::bl2::UObject {
+    WORLD_EXPORTER_DISALLOW_CREATE(Actor);
     uint8_t _1[328];
 };
 

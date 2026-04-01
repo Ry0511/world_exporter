@@ -11,8 +11,6 @@
 
 #include "unrealsdk/unreal/find_class.h"
 
-namespace fs = std::filesystem;
-
 namespace {
 
 using namespace unrealsdk;

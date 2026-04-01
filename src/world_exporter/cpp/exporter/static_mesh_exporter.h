@@ -6,7 +6,7 @@
 #ifndef WORLD_EXPORTER_STATIC_MESH_EXPORTER_H
 #define WORLD_EXPORTER_STATIC_MESH_EXPORTER_H
 
-#include "pyunrealsdk/pch.h"
+#include "world_exporter/cpp/pch.h"
 
 namespace world_exporter {
 
@@ -65,6 +65,10 @@ struct StaticMeshExportInfo {
     void reset() noexcept;
 };
 
+/**
+ * Bulk/Iterative exporter for Static Meshes - operates by transforming the unreal side data into
+ * an intermediate format that is easier to export to glTF.
+ */
 class StaticMeshExporter {
    private:
     StaticMeshExportInfo m_ExportInfo;
@@ -78,6 +82,13 @@ class StaticMeshExporter {
 
    public:
     void reset();
+
+    /**
+     * @param mesh the mesh to export
+     * @return true if the export was successful or false if it was not
+     * @note export results can be obtained via `export_info()`
+     * @note all calls immediately invalidate the previous result
+     */
     bool export_static_mesh(helpers::UStaticMesh* mesh);
 
    private:

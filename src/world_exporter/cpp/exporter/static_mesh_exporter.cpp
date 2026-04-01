@@ -4,14 +4,10 @@
 // Author     : -Ry
 //
 
-// TODO: create our own pch and import that everywhere
-#include "pyunrealsdk/pch.h"
+#include "world_exporter/cpp/pch.h"
 
 #include "world_exporter/cpp/exporter/static_mesh_exporter.h"
 #include "world_exporter/cpp/util/static_mesh.h"
-
-#include "glm/glm.hpp"
-#include "glm/gtc/type_ptr.hpp"
 
 namespace world_exporter {
 
@@ -32,7 +28,6 @@ glm::vec3 gltf_swizzle(const float* vec) noexcept {
     // see: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units
     return glm::vec3{-vec[1], vec[2], vec[0]};
 }
-
 }  // namespace
 
 using namespace helpers;
@@ -66,9 +61,8 @@ bool StaticMeshExporter::export_static_mesh(UStaticMesh* mesh) {
         return false;
     }
 
-    LOG(INFO, "export static mesh {}", obj->get_path_name());
-
     if (mesh->LodModels.data == nullptr || mesh->LodModels.count <= 0) {
+        LOG(ERROR, "error exporting static mesh; {}", obj->get_path_name());
         LOG(ERROR, "can not export static mesh because there are not LOD models");
         return false;
     }
@@ -92,12 +86,13 @@ bool StaticMeshExporter::export_static_mesh(UStaticMesh* mesh) {
                 const auto& sub_mesh = model->SubMeshes[i];
                 auto& primitive = m_ExportInfo.primitives.emplace_back();
                 primitive.material = sub_mesh.Material;
-                primitive.verts = {sub_mesh.MinVertexIndex, sub_mesh.MaxVertexIndex};
-                // TODO: not exactly sure if those are the right ones, they probably ar
+                primitive.verts = {sub_mesh.FirstIndex, sub_mesh.NumTriangles * uint32_t{3}};
+                // TODO: have yet to explore primitive exporting
             }
         }
     } catch (const std::runtime_error& err) {
-        LOG(ERROR, "failed to export static mesh; {}", err.what());
+        LOG(ERROR, "error exporting static mesh; {}", obj->get_path_name());
+        LOG(ERROR, "  - {}", err.what());
         return false;
     }
 
@@ -177,7 +172,7 @@ void StaticMeshExporter::export_colour_buffer(const FStaticMeshRenderData& mesh)
     uint8_t* data = buf.VertexData->data();
 
     if (data == nullptr) {
-        LOG(WARNING, "failed to obtain colour data pointer - skipping colour buffer");
+        LOG(WARNING, "failed to obtain colour data pointer");
         return;
     }
 

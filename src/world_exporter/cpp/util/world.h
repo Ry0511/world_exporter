@@ -6,13 +6,12 @@
 #ifndef WORLD_EXPORTER_WORLD_H
 #define WORLD_EXPORTER_WORLD_H
 
-#include "pyunrealsdk/pch.h"
+#include "world_exporter/cpp/pch.h"
 #include "unrealsdk/game/bl2/offsets.h"
 
 #include "world_exporter/cpp/util/common.h"
 
 namespace world_exporter {
-namespace fs = std::filesystem;
 
 UNREALSDK_UNREAL_STRUCT_PADDING_PUSH()
 namespace helpers {
@@ -25,6 +24,7 @@ using namespace unrealsdk;
 //
 
 struct ULevel : game::bl2::UObject {
+    WORLD_EXPORTER_DISALLOW_CREATE(ULevel);
     TArrayWithOwner<unreal::UObject*> Actors;
     FURL Url;
     void* Model;
@@ -33,6 +33,7 @@ struct ULevel : game::bl2::UObject {
 };
 
 struct UWorld : game::bl2::UObject {
+    WORLD_EXPORTER_DISALLOW_CREATE(UWorld);
     uintptr_t* FNetworkNotifyVtable;
     void* FSceneInterface;
     unreal::TArray<ULevel*> Levels;

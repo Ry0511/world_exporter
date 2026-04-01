@@ -6,7 +6,7 @@
 #ifndef WORLD_EXPORTER_TEXTURE_H
 #define WORLD_EXPORTER_TEXTURE_H
 
-#include "pyunrealsdk/pch.h"
+#include "world_exporter/cpp/pch.h"
 #include "world_exporter/cpp/util/rhi.h"
 
 namespace world_exporter::helpers {
@@ -18,16 +18,19 @@ namespace world_exporter::helpers {
 UNREALSDK_UNREAL_STRUCT_PADDING_PUSH()
 
 struct FTexture : FRenderResource {
+    WORLD_EXPORTER_DISALLOW_CREATE(FTexture);
     TDynamicRHIResourceReference TextureRhi; // FD3D9Texture**
     TDynamicRHIResourceReference SamplerRhi; // ?
     uint8_t _3[36];
 };
 
 struct FTextureResource : FTexture {
+    WORLD_EXPORTER_DISALLOW_CREATE(FTextureResource);
     uint8_t _3[4];
 };
 
 struct FTexture2DResource : FTextureResource {
+    WORLD_EXPORTER_DISALLOW_CREATE(FTexture2DResource);
     unrealsdk::unreal::UObject* Owner;  // likely Texture2D
 };
 

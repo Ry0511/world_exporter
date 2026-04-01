@@ -4,6 +4,7 @@
 // Author     : -Ry
 //
 
+#include "world_exporter/cpp/pch.h"
 #include "world_exporter/cpp/world_exporter.h"
 
 #include "unrealsdk/unrealsdk.h"
@@ -42,7 +43,7 @@ void WorldExporter::export_world(const fs::path& dest) {
     // default material at index 0
     tinygltf::Material mat{};
     mat.pbrMetallicRoughness.baseColorFactor = {1.0F, 1.0F, 1.0F, 1.0F};
-    mat.doubleSided = true;
+    mat.doubleSided = false;
     m_TheModel.materials.push_back(mat);
     m_TheModel.asset.version = "2.0";
     m_TheModel.asset.generator = "tinygltf";

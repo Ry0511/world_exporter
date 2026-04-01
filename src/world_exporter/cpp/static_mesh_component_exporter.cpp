@@ -4,10 +4,7 @@
 // Author     : -Ry
 //
 
-#include "pyunrealsdk/pch.h"
-
-#include "glm/glm.hpp"
-#include "glm/gtc/quaternion.hpp"
+#include "world_exporter/cpp/pch.h"
 
 #include "world_exporter/cpp/world_exporter.h"
 #include "world_exporter/cpp/util/static_mesh.h"

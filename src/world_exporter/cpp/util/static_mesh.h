@@ -6,13 +6,12 @@
 #ifndef WORLD_EXPORTER_STATIC_MESH_H
 #define WORLD_EXPORTER_STATIC_MESH_H
 
-#include "pyunrealsdk/pch.h"
+#include "world_exporter/cpp/pch.h"
 #include "unrealsdk/game/bl2/offsets.h"
 
 #include "world_exporter/cpp/util/common.h"
 
 namespace world_exporter {
-namespace fs = std::filesystem;
 
 UNREALSDK_UNREAL_STRUCT_PADDING_PUSH()
 
@@ -23,28 +22,37 @@ using namespace unrealsdk;
 // | COMMON |
 ////////////////////////////////////////////////////////////////////////////////
 
+constexpr size_t MAX_UV_COUNT = 4;
+
+// TODO: at somepoint will want to look into 32bit uvs however I have not seen them be used at all
+//  in bl2 thus far
 struct TStaticMeshFullVertexFloat16UVs {
+    WORLD_EXPORTER_DISALLOW_CREATE(TStaticMeshFullVertexFloat16UVs);
     FPackedNormal TangentX;
     FPackedNormal TangentZ;
     // variable size - determined by ::NumTexCoords
-    FVector2DHalf UVs[4];
+    FVector2DHalf UVs[MAX_UV_COUNT];
 };
 
 struct FFragmentRange {
+    WORLD_EXPORTER_DISALLOW_CREATE(FFragmentRange);
     int32_t BaseIndex;
     int32_t NumPrimitives;
 };
 
 struct FRenderResource {
+    WORLD_EXPORTER_DISALLOW_CREATE(FRenderResource);
     uintptr_t* vftable;
     uint32_t _1[4];
 };
 
 struct FVertexBuffer : FRenderResource {
+    WORLD_EXPORTER_DISALLOW_CREATE(FVertexBuffer);
     uint32_t _1;
 };
 
 struct FStaticMeshVertexDataInterface {
+    WORLD_EXPORTER_DISALLOW_CREATE(FStaticMeshVertexDataInterface);
     struct Vftable {
         void* _1;
         void* _2;
@@ -57,13 +65,16 @@ struct FStaticMeshVertexDataInterface {
 };
 
 template <class T>
-struct TStaticMeshVertexData : FStaticMeshVertexDataInterface, TResourceArray<T> {};
+struct TStaticMeshVertexData : FStaticMeshVertexDataInterface, TResourceArray<T> {
+    WORLD_EXPORTER_DISALLOW_CREATE(TStaticMeshVertexData);
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 // | FStaticMeshVertexBuffer |
 ////////////////////////////////////////////////////////////////////////////////
 
 struct FStaticMeshVertexBuffer : FVertexBuffer {
+    WORLD_EXPORTER_DISALLOW_CREATE(FStaticMeshVertexBuffer);
     FStaticMeshVertexDataInterface* VertexData;
     uint32_t NumTexCoords;
     uint8_t* Data;
@@ -76,9 +87,12 @@ struct FStaticMeshVertexBuffer : FVertexBuffer {
 // | FPositionVertexBuffer |
 ////////////////////////////////////////////////////////////////////////////////
 
-struct FPositionVertexData : TStaticMeshVertexData<FVector> {};
+struct FPositionVertexData : TStaticMeshVertexData<FVector> {
+    WORLD_EXPORTER_DISALLOW_CREATE(FPositionVertexData);
+};
 
 struct FPositionVertexBuffer : FVertexBuffer {
+    WORLD_EXPORTER_DISALLOW_CREATE(FPositionVertexBuffer);
     FPositionVertexData* VertexData;
     uint8_t* Data;
     uint32_t Stride;
@@ -89,9 +103,12 @@ struct FPositionVertexBuffer : FVertexBuffer {
 // | FColourVertexBuffer |
 ////////////////////////////////////////////////////////////////////////////////
 
-struct FColorVertexData : TStaticMeshVertexData<FColor> {};
+struct FColorVertexData : TStaticMeshVertexData<FColor> {
+    WORLD_EXPORTER_DISALLOW_CREATE(FColorVertexData);
+};
 
 struct FColourVertexBuffer : FVertexBuffer {
+    WORLD_EXPORTER_DISALLOW_CREATE(FColourVertexBuffer);
     FColorVertexData* VertexData;
     uint8_t* Data;
     uint32_t Stride;
@@ -103,10 +120,12 @@ struct FColourVertexBuffer : FVertexBuffer {
 ////////////////////////////////////////////////////////////////////////////////
 
 struct FIndexBuffer : FRenderResource {
+    WORLD_EXPORTER_DISALLOW_CREATE(FIndexBuffer);
     uint32_t _1;
 };
 
 struct FRawStaticIndexBuffer : FIndexBuffer {
+    WORLD_EXPORTER_DISALLOW_CREATE(FRawStaticIndexBuffer);
     unreal::TArray<int16_t> Indices;
     uint32_t NumVertsPerInstance;
     uint32_t PreallocateInstanceCount;
@@ -118,6 +137,7 @@ struct FRawStaticIndexBuffer : FIndexBuffer {
 ////////////////////////////////////////////////////////////////////////////////
 
 struct FStaticMeshLodElement {
+    WORLD_EXPORTER_DISALLOW_CREATE(FStaticMeshLodElement);
     unreal::UObject* Material;
     uint32_t bEnableShadowCasting;
     uint32_t bSelected;
@@ -125,6 +145,7 @@ struct FStaticMeshLodElement {
 };
 
 struct FStaticMeshLodInfo {
+    WORLD_EXPORTER_DISALLOW_CREATE(FStaticMeshLodInfo);
     unreal::TArray<FStaticMeshLodElement> Elements;
 };
 
@@ -133,6 +154,7 @@ struct FStaticMeshLodInfo {
 ////////////////////////////////////////////////////////////////////////////////
 
 struct FStaticMeshElement {
+    WORLD_EXPORTER_DISALLOW_CREATE(FStaticMeshElement);
     void* Material;
     unreal::UnmanagedFString Name;
     int32_t bEnableCollision;
@@ -148,6 +170,7 @@ struct FStaticMeshElement {
 };
 
 struct FStaticMeshRenderData {
+    WORLD_EXPORTER_DISALLOW_CREATE(FStaticMeshRenderData);
     FStaticMeshVertexBuffer VertexBuffer;
     FPositionVertexBuffer PositionVertexBuffer;
     FColourVertexBuffer ColourVertexBuffer;
@@ -159,13 +182,14 @@ struct FStaticMeshRenderData {
 };
 
 struct UStaticMesh : game::bl2::UObject {
+    WORLD_EXPORTER_DISALLOW_CREATE(UStaticMesh);
     unreal::TArray<FStaticMeshRenderData*> LodModels;
     unreal::TArray<FStaticMeshLodInfo> LodInfo;
     float LodDistanceRatio;
     float LodMaxRange;
 };
 
-}
+}  // namespace helpers
 
 UNREALSDK_UNREAL_STRUCT_PADDING_POP()
 }  // namespace world_exporter

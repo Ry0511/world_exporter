@@ -6,7 +6,7 @@
 #ifndef WORLD_EXPORTER_MATERIALS_H
 #define WORLD_EXPORTER_MATERIALS_H
 
-#include "pyunrealsdk/pch.h"
+#include "world_exporter/cpp/pch.h"
 
 namespace world_exporter {
 

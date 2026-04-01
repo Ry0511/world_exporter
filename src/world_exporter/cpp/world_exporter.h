@@ -6,14 +6,13 @@
 #ifndef WORLD_EXPORTER_WORLD_EXPORTER_H
 #define WORLD_EXPORTER_WORLD_EXPORTER_H
 
-#include "pyunrealsdk/pch.h"
+#include "world_exporter/cpp/pch.h"
 
 #include "unrealsdk/unreal/classes/uclass.h"
 #include "tinygltf/tiny_gltf.h"
 
 namespace world_exporter {
 
-namespace fs = std::filesystem;
 using namespace unrealsdk;
 using namespace unrealsdk::unreal;
 
