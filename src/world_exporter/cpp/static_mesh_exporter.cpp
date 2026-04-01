@@ -17,14 +17,19 @@ using namespace helpers;
 
 namespace {
 
+constexpr int invalid_id_v = -1;
+
 struct GltfMeshExportInfo {
-    int mesh_buffer_id{-1};
-    int indices_bv_id{-1};
-    int indices_ac_id{-1}; // TODO: remove this
-    int pos_ac_id{-1};
-    int colour_ac_id{-1};
-    int normal_ac_id{-1};
-    std::array<int, MAX_UV_COUNT> texcoords_ac_ids{-1};
+    int mesh_buffer_id{invalid_id_v};
+    int indices_bv_id{invalid_id_v};
+    int pos_ac_id{invalid_id_v};
+    int colour_ac_id{invalid_id_v};
+    int normal_ac_id{invalid_id_v};
+    std::array<int, MAX_UV_COUNT> texcoords_ac_ids{};
+
+    GltfMeshExportInfo() {
+        texcoords_ac_ids.fill(invalid_id_v);
+    }
 };
 
 void export_pos_buffer(const StaticMeshExportInfo& info, tinygltf::Model& model, GltfMeshExportInfo& out_info);
@@ -55,7 +60,7 @@ void WorldExporter::export_static_meshes() {
 
         // exporting failed so just skip this mesh
         if (!exporter.export_static_mesh(mesh)) {
-            m_MeshMap[reinterpret_cast<uintptr_t>(mesh)] = -1;
+            m_MeshMap[reinterpret_cast<uintptr_t>(mesh)] = invalid_id_v;
             continue;
         }
 
@@ -78,15 +83,6 @@ void WorldExporter::export_static_meshes() {
             indices_bv.byteOffset = info.index_buffer.start;
             indices_bv.byteLength = info.index_buffer.size();
             indices_bv.target = TINYGLTF_TARGET_ELEMENT_ARRAY_BUFFER;
-
-            // TODO: this should be removed
-            gltf_export.indices_ac_id = static_cast<int>(m_TheModel.accessors.size());
-            tinygltf::Accessor& indices_ac = m_TheModel.accessors.emplace_back();
-            indices_ac.bufferView = gltf_export.indices_bv_id;
-            indices_ac.byteOffset = 0;
-            indices_ac.componentType = TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT;
-            indices_ac.count = info.index_buffer.vertex_count;
-            indices_ac.type = TINYGLTF_TYPE_SCALAR;
         }
 
         export_pos_buffer(info, m_TheModel, gltf_export);
@@ -106,15 +102,26 @@ void WorldExporter::export_static_meshes() {
         tinygltf::Primitive& mesh_primitive = gltf_mesh.primitives.emplace_back();
         mesh_primitive.material = 0;
         mesh_primitive.mode = TINYGLTF_MODE_TRIANGLES;
-        mesh_primitive.indices = gltf_export.indices_ac_id;
+        mesh_primitive.indices = static_cast<int>(m_TheModel.accessors.size());
+        { // for the time being we have a single primitive
+            tinygltf::Accessor& indices_ac = m_TheModel.accessors.emplace_back();
+            indices_ac.bufferView = gltf_export.indices_bv_id;
+            indices_ac.byteOffset = 0;
+            indices_ac.componentType = TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT;
+            indices_ac.count = info.index_buffer.vertex_count;
+            indices_ac.type = TINYGLTF_TYPE_SCALAR;
+        }
         mesh_primitive.attributes["POSITION"] = gltf_export.pos_ac_id;
-        if (gltf_export.colour_ac_id != -1) {
+        if (gltf_export.colour_ac_id != invalid_id_v) {
             mesh_primitive.attributes["COLOR_0"] = gltf_export.colour_ac_id;
         }
         mesh_primitive.attributes["NORMAL"] = gltf_export.normal_ac_id;
         for (size_t i = 0; i < gltf_export.texcoords_ac_ids.size(); ++i) {
             // NOLINTNEXTLINE(*-pro-bounds-constant-array-index)
-            mesh_primitive.attributes["TEXCOORD_" + std::to_string(i)] = gltf_export.texcoords_ac_ids[i];
+            int id = gltf_export.texcoords_ac_ids[i];
+            if (id != invalid_id_v) {
+                mesh_primitive.attributes[std::format("TEXCOORD_{}", i)] = id;
+            }
         }
     }
 }
