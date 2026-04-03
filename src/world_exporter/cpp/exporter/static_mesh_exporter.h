@@ -31,8 +31,8 @@ struct BufferRangeInfo {
 };
 
 struct IndexedMeshPrimitive {
-    void* material{nullptr};  // native unreal pointer to the material for this primitive
-    BufferRangeInfo verts{};  // the range of indices for this mesh primitive
+    void* material{nullptr};    // native unreal pointer to the material for this primitive
+    BufferRangeInfo indices{};  // the range of indices for this mesh primitive
 };
 
 /**

@@ -86,8 +86,9 @@ bool StaticMeshExporter::export_static_mesh(UStaticMesh* mesh) {
                 const auto& sub_mesh = model->SubMeshes[i];
                 auto& primitive = m_ExportInfo.primitives.emplace_back();
                 primitive.material = sub_mesh.Material;
-                primitive.verts = {sub_mesh.FirstIndex, sub_mesh.NumTriangles * uint32_t{3}};
-                // TODO: have yet to explore primitive exporting
+                size_t offset = sub_mesh.FirstIndex * sizeof(uint16_t);
+                size_t end = (sub_mesh.NumTriangles * uint32_t{3}) * sizeof(uint16_t);
+                primitive.indices = {offset, end, sub_mesh.NumTriangles * uint32_t{3}};
             }
         }
     } catch (const std::runtime_error& err) {

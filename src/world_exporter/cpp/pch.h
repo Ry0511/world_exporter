@@ -36,6 +36,8 @@
 // | CPP STUFF |
 ////////////////////////////////////////////////////////////////////////////////
 
+#include <random>
+
 #include "pyunrealsdk/pch.h"
 #include "tinygltf/tiny_gltf.h"
 

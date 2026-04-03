@@ -16,7 +16,6 @@ namespace world_exporter {
 using namespace helpers;
 
 namespace {
-
 constexpr int invalid_id_v = -1;
 
 struct GltfMeshExportInfo {
@@ -32,10 +31,30 @@ struct GltfMeshExportInfo {
     }
 };
 
-void export_pos_buffer(const StaticMeshExportInfo& info, tinygltf::Model& model, GltfMeshExportInfo& out_info);
-void export_colour_buffer(const StaticMeshExportInfo& info, tinygltf::Model& model, GltfMeshExportInfo& out_info);
-void export_uvnormal_buffer(const StaticMeshExportInfo& info, tinygltf::Model& model, GltfMeshExportInfo& out_info);
-void export_primitives(const StaticMeshExportInfo& info, tinygltf::Model& model, const GltfMeshExportInfo& gltf);
+void export_pos_buffer(
+    const StaticMeshExportInfo& info,
+    tinygltf::Model& model,
+    GltfMeshExportInfo& out_info
+);
+
+void export_colour_buffer(
+    const StaticMeshExportInfo& info,
+    tinygltf::Model& model,
+    GltfMeshExportInfo& out_info
+);
+
+void export_uvnormal_buffer(
+    const StaticMeshExportInfo& info,
+    tinygltf::Model& model,
+    GltfMeshExportInfo& out_info
+);
+
+void export_primitives(
+    const StaticMeshExportInfo& info,
+    tinygltf::Model& model,
+    const GltfMeshExportInfo& gltf,
+    tinygltf::Mesh& gltf_mesh
+);
 
 }  // namespace
 
@@ -92,37 +111,11 @@ void WorldExporter::export_static_meshes() {
         export_uvnormal_buffer(info, m_TheModel, gltf_export);
 
         // create the mesh
-        int gltf_mesh_id = static_cast<int>(m_TheModel.meshes.size());
-        m_MeshMap[reinterpret_cast<uintptr_t>(obj)] = gltf_mesh_id;
+        int mesh_id = static_cast<int>(m_TheModel.meshes.size());
+        m_MeshMap[reinterpret_cast<uintptr_t>(obj)] = mesh_id;
         tinygltf::Mesh& gltf_mesh = m_TheModel.meshes.emplace_back();
         gltf_mesh.name = obj->Name();
-
-        // TODO: will want to create multiple primitives for each material
-        // To support multiple primitives we would need to create an Accessor for each primitive range
-        tinygltf::Primitive& mesh_primitive = gltf_mesh.primitives.emplace_back();
-        mesh_primitive.material = 0;
-        mesh_primitive.mode = TINYGLTF_MODE_TRIANGLES;
-        mesh_primitive.indices = static_cast<int>(m_TheModel.accessors.size());
-        { // for the time being we have a single primitive
-            tinygltf::Accessor& indices_ac = m_TheModel.accessors.emplace_back();
-            indices_ac.bufferView = gltf_export.indices_bv_id;
-            indices_ac.byteOffset = 0;
-            indices_ac.componentType = TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT;
-            indices_ac.count = info.index_buffer.vertex_count;
-            indices_ac.type = TINYGLTF_TYPE_SCALAR;
-        }
-        mesh_primitive.attributes["POSITION"] = gltf_export.pos_ac_id;
-        if (gltf_export.colour_ac_id != invalid_id_v) {
-            mesh_primitive.attributes["COLOR_0"] = gltf_export.colour_ac_id;
-        }
-        mesh_primitive.attributes["NORMAL"] = gltf_export.normal_ac_id;
-        for (size_t i = 0; i < gltf_export.texcoords_ac_ids.size(); ++i) {
-            // NOLINTNEXTLINE(*-pro-bounds-constant-array-index)
-            int id = gltf_export.texcoords_ac_ids[i];
-            if (id != invalid_id_v) {
-                mesh_primitive.attributes[std::format("TEXCOORD_{}", i)] = id;
-            }
-        }
+        export_primitives(info, m_TheModel, gltf_export, gltf_mesh);
     }
 }
 
@@ -207,6 +200,61 @@ void export_uvnormal_buffer(
         uv.componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
         uv.count = info.uvnormal_buffer.vertex_count;
         uv.type = TINYGLTF_TYPE_VEC2;
+    }
+}
+
+void export_primitives(
+    const StaticMeshExportInfo& info,
+    tinygltf::Model& model,
+    const GltfMeshExportInfo& gltf_export,
+    tinygltf::Mesh& gltf_mesh
+) {
+
+    if (info.primitives.empty()) {
+      LOG(WARNING, "mesh {} has no primitives?", gltf_mesh.name);
+    }
+
+    std::random_device rd{};
+    std::mt19937 rng{rd()};
+    std::uniform_real_distribution<double> random_real{0.25, 1.0};
+
+    for (const auto& primitive : info.primitives) {
+        tinygltf::Primitive& mesh_primitive = gltf_mesh.primitives.emplace_back();
+
+        // TODO: material extraction - currently just filling it with random materials
+        mesh_primitive.material = static_cast<int>(model.materials.size());
+        tinygltf::Material& material = model.materials.emplace_back();
+        material.pbrMetallicRoughness.baseColorFactor = {
+            random_real(rng),
+            random_real(rng),
+            random_real(rng),
+            1.0
+        };
+        material.pbrMetallicRoughness.metallicFactor = random_real(rng);
+        material.pbrMetallicRoughness.roughnessFactor = random_real(rng);
+
+        mesh_primitive.mode = TINYGLTF_MODE_TRIANGLES;
+        mesh_primitive.indices = static_cast<int>(model.accessors.size());
+
+        tinygltf::Accessor& indices_ac = model.accessors.emplace_back();
+        indices_ac.bufferView = gltf_export.indices_bv_id;
+        indices_ac.byteOffset = primitive.indices.start;
+        indices_ac.componentType = TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT;
+        indices_ac.count = primitive.indices.vertex_count;
+        indices_ac.type = TINYGLTF_TYPE_SCALAR;
+
+        mesh_primitive.attributes["POSITION"] = gltf_export.pos_ac_id;
+        if (gltf_export.colour_ac_id != invalid_id_v) {
+            mesh_primitive.attributes["COLOR_0"] = gltf_export.colour_ac_id;
+        }
+        mesh_primitive.attributes["NORMAL"] = gltf_export.normal_ac_id;
+        for (size_t i = 0; i < gltf_export.texcoords_ac_ids.size(); ++i) {
+            // NOLINTNEXTLINE(*-pro-bounds-constant-array-index)
+            int id = gltf_export.texcoords_ac_ids[i];
+            if (id != invalid_id_v) {
+                mesh_primitive.attributes[std::format("TEXCOORD_{}", i)] = id;
+            }
+        }
     }
 }
 
