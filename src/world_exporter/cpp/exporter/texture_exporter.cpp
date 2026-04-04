@@ -55,14 +55,12 @@ using namespace helpers;
 void TextureExportInfo::write_to(const fs::path& out) const {
     std::string ext = out.extension().string();
     std::ranges::transform(ext, ext.begin(), ::tolower);
-
     if (ext == ".ppm") {
         std::ofstream ofs{out, std::ios::binary | std::ios::trunc};
         if (!ofs) {
-            throw std::runtime_error{"failed to open file for writing; " + out.filename().string()};
+            throw std::runtime_error{"failed to write .ppm file; " + out.filename().string()};
         }
-        ofs << "P6\n"
-            << width << " " << height << "\n255\n";
+        ofs << std::format("P6\n{} {}\n255\n", width, height);
         for (size_t i = 0; i < size_in_bytes(); i += 4) {
             const uint8_t* px = data.get() + i;
             ofs.write(reinterpret_cast<const char*>(px), 3);  // RGB
@@ -76,9 +74,19 @@ void TextureExportInfo::write_to(const fs::path& out) const {
             data.get(),
             static_cast<int>(width) * num_components
         );
-
         if (res == 0) {
-            throw std::runtime_error{"failed to write image to file; " + out.string()};
+            throw std::runtime_error{"failed to write .png file; " + out.string()};
+        }
+    } else if (ext == ".tga") {
+        int res = stbi_write_tga(
+            out.string().c_str(),
+            static_cast<int>(width),
+            static_cast<int>(height),
+            num_components,
+            data.get()
+        );
+        if (res == 0) {
+            throw std::runtime_error{"failed to write .tga file; " + out.string()};
         }
     } else {
         throw std::runtime_error{"unsupported file format; " + out.filename().string()};
