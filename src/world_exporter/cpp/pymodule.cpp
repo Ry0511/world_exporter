@@ -49,7 +49,7 @@ void impl_testing(const std::wstring& obj_path) {
         static size_t index{0};
         fs::path out_path{
             "G:/Dev/git_borderlands/world_exporter/src/world_exporter/py/exports/img/"
-            + std::to_string(index++) + ".ppm"
+            + std::to_string(index++) + ".png"
         };
         info.write_to(out_path);
     }

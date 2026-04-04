@@ -14,12 +14,13 @@ namespace world_exporter {
 
 // TODO: certain sampler parameters should also be exported
 struct TextureExportInfo {
+    static constexpr auto num_components = 4;
     std::unique_ptr<uint8_t[]> data{nullptr};  // RGBA literal bytes
     uint32_t width{0};
     uint32_t height{0};
     bool is_srgb{false};
 
-    uint32_t size_in_bytes() const noexcept { return width * height * uint32_t{4}; }
+    uint32_t size_in_bytes() const noexcept { return width * height * uint32_t{num_components}; }
     void to_linear() noexcept;
     void to_srgb() noexcept;
     void write_to(const fs::path& out) const;

@@ -8,6 +8,7 @@
 
 #include "unrealsdk/unreal/find_class.h"
 #include "s3tc-dxt-decompression/s3tc.h"
+#include "stb/stb_image_write.h"
 
 namespace world_exporter {
 
@@ -52,21 +53,35 @@ using namespace helpers;
 ////////////////////////////////////////////////////////////////////////////////
 
 void TextureExportInfo::write_to(const fs::path& out) const {
-    if (out.extension() != ".ppm") {
-        throw std::runtime_error{"unsupported output format"};
-    }
+    std::string ext = out.extension().string();
+    std::ranges::transform(ext, ext.begin(), ::tolower);
 
-    std::ofstream ofs{out, std::ios::binary | std::ios::trunc};
+    if (ext == ".ppm") {
+        std::ofstream ofs{out, std::ios::binary | std::ios::trunc};
+        if (!ofs) {
+            throw std::runtime_error{"failed to open file for writing; " + out.filename().string()};
+        }
+        ofs << "P6\n"
+            << width << " " << height << "\n255\n";
+        for (size_t i = 0; i < size_in_bytes(); i += 4) {
+            const uint8_t* px = data.get() + i;
+            ofs.write(reinterpret_cast<const char*>(px), 3);  // RGB
+        }
+    } else if (ext == ".png") {
+        int res = stbi_write_png(
+            out.string().c_str(),
+            static_cast<int>(width),
+            static_cast<int>(height),
+            num_components,  // 4 components
+            data.get(),
+            static_cast<int>(width) * num_components
+        );
 
-    if (!ofs) {
-        throw std::runtime_error{"failed to open file for writing"};
-    }
-
-    ofs << "P6\n"
-        << width << " " << height << "\n255\n";
-    for (size_t i = 0; i < size_in_bytes(); i += 4) {
-        const uint8_t* px = data.get() + i;
-        ofs.write(reinterpret_cast<const char*>(px), 3);  // RGB
+        if (res == 0) {
+            throw std::runtime_error{"failed to write image to file; " + out.string()};
+        }
+    } else {
+        throw std::runtime_error{"unsupported file format; " + out.filename().string()};
     }
 }
 
@@ -197,7 +212,7 @@ void TextureExporter::extract_pixel_data_from_rhi(helpers::FD3D9Texture* rhi) {
         auto* pbits = reinterpret_cast<uint8_t*>(locked_rect.pBits);
         for (uint32_t i = 0; i < m_Export.size_in_bytes(); i += 4) {
             auto* data = m_Export.data.get();
-            // stored as packed ARGB which is BGRA bytewise in little endian
+            // stored as packed ARGB which is BGRA bytewise in little endian; we want RGBA bytewise
             data[i + 0] = pbits[i + 2];  // R
             data[i + 1] = pbits[i + 1];  // G
             data[i + 2] = pbits[i + 0];  // B
