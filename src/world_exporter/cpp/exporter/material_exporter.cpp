@@ -32,6 +32,7 @@ bool MaterialExporter::export_material(UObject* obj) {
     static auto* prop_texture_parameters = mat_inst_cls->find_prop_and_validate<ZArrayProperty>(L"TextureParameterValues"_fn);
     static FName name_diffuse = L"p_Diffuse"_fn;
     static FName name_normal = L"p_Normal"_fn;
+    static FName name_emissive = L"p_Emissive"_fn;
 
     TextureExporter texture_exporter{};
     WrappedArray texture_params = get_property(prop_texture_parameters, 0, reinterpret_cast<uintptr_t>(obj));
@@ -50,6 +51,7 @@ bool MaterialExporter::export_material(UObject* obj) {
         if (parameter_name == name_diffuse) {
             if (texture_exporter.export_texture(texture)) {
                 m_Export.diffuse_texture = std::move(texture_exporter.export_info());
+                m_Export.diffuse_texture.to_linear();
             } else {
                 LOG(ERROR, "failed to export diffuse texture; {}", obj->get_path_name());
             }
@@ -59,10 +61,33 @@ bool MaterialExporter::export_material(UObject* obj) {
             } else {
                 LOG(ERROR, "failed to export normal texture; {}", obj->get_path_name());
             }
+        } else if (parameter_name == name_emissive) {
+            if (texture_exporter.export_texture(texture)) {
+                m_Export.emissive_texture = std::move(texture_exporter.export_info());
+                m_Export.emissive_texture.to_srgb();
+            } else {
+                LOG(ERROR, "failed to export emissive texture; {}", obj->get_path_name());
+            }
         }
     }
 
     return m_Export;
+}
+
+void MaterialExporter::extract_material_props(unrealsdk::unreal::UObject* mat) {
+    static auto* mat_cls = find_class(L"Material"_fn);
+    uintptr_t base = reinterpret_cast<uintptr_t>(mat);
+
+    static auto* prop_two_sided = mat_cls->find_prop_and_validate<ZBoolProperty>(L"TwoSided"_fn);
+    m_Export.is_double_sided = get_property(prop_two_sided, 0, base);
+
+    static auto* prop_alpha_cutoff = mat_cls->find_prop_and_validate<ZFloatProperty>(L"OpacityMaskClipValue"_fn);
+    m_Export.alpha_cutoff = get_property(prop_alpha_cutoff, 0, base);
+    // probably not tha useful without:
+    //   var ScalarMaterialInput OpacityMask;
+
+    static auto* prop_blend_mode = mat_cls->find_prop_and_validate<ZByteProperty>(L"BlendMode"_fn);
+    m_Export.blend_mode = static_cast<BlendMode>(get_property(prop_blend_mode, 0, base));
 }
 
 }  // namespace world_exporter

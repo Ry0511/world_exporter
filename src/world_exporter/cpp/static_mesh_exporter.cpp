@@ -59,17 +59,40 @@ void export_primitives(
     const fs::path& export_dir
 );
 
-auto tinygltf_filter(TextureFilter filter) {
+void export_material(
+    tinygltf::Model& model,
+    const fs::path& export_dir,
+    void* raw_material,
+    tinygltf::Primitive& mesh_primitive
+);
+
+auto gltf_texture_filter(TextureFilter filter) {
     switch (filter) {
         case TextureFilter::Nearest:
             return TINYGLTF_TEXTURE_FILTER_NEAREST;
         case TextureFilter::Linear:
             return TINYGLTF_TEXTURE_FILTER_LINEAR;
-        default: {
-            LOG(WARNING, "this shit should be unreachable");
-        }
     }
     return TINYGLTF_TEXTURE_FILTER_LINEAR;
+}
+
+std::string gltf_alpha_mode(BlendMode mode) {
+    // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_material_alphamode
+    // closest approximations
+    switch (mode) {
+        case BlendMode::Opaque:
+            return "OPAQUE";
+        case BlendMode::Masked:
+        case BlendMode::SoftMasked:
+            return "MASK";
+        case BlendMode::Translucent:
+        case BlendMode::Additive:
+        case BlendMode::Modulate:
+        case BlendMode::AlphaComposite:
+        case BlendMode::DitheredTranslucent:
+            return "BLEND";
+    }
+    return "OPAQUE";
 }
 
 }  // namespace
@@ -231,78 +254,14 @@ void export_primitives(
         LOG(WARNING, "mesh {} has no primitives?", gltf_mesh.name);
     }
 
-    MaterialExporter material_exporter{};
-
     for (const auto& primitive : info.primitives) {
         tinygltf::Primitive& mesh_primitive = gltf_mesh.primitives.emplace_back();
-        mesh_primitive.material = static_cast<int>(model.materials.size());
-
-        tinygltf::Material& material = model.materials.emplace_back();
-        material.pbrMetallicRoughness.metallicFactor = 0.8;
-        material.pbrMetallicRoughness.roughnessFactor = 0.3;
-
-        auto* mat_obj = reinterpret_cast<UObject*>(primitive.material);
-        material_exporter.export_material(mat_obj);
-        const auto& mat_info = material_exporter.export_info();
-
-        if (mat_info.diffuse_texture) {
-            material.pbrMetallicRoughness.baseColorTexture.index = static_cast<int>(model.textures.size());
-            material.pbrMetallicRoughness.baseColorTexture.texCoord = 0;
-            tinygltf::Texture& tex = model.textures.emplace_back();
-            tex.sampler = static_cast<int>(model.samplers.size());
-            tex.source = static_cast<int>(model.images.size());
-
-            tinygltf::Sampler& sampler = model.samplers.emplace_back();
-            auto filter = tinygltf_filter(mat_info.diffuse_texture.filter);
-            sampler.minFilter = filter;
-            sampler.magFilter = filter;
-
-            auto wrapping = mat_info.diffuse_texture.no_wrapping
-                                ? TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE
-                                : TINYGLTF_TEXTURE_WRAP_REPEAT;
-            sampler.wrapS = wrapping;
-            sampler.wrapT = wrapping;
-
-            fs::path out_file = export_dir / "img" / (mat_info.diffuse_texture.safe_name + ".png");
-            mat_info.diffuse_texture.write_to(out_file);
-
-            tinygltf::Image& image = model.images.emplace_back();
-            image.uri = fs::relative(out_file, export_dir).generic_string();
-
-        } else {
-            material.pbrMetallicRoughness.baseColorFactor = {
-                static_cast<float>(25 + (rand() % 75)) / 100.0F,
-                static_cast<float>(25 + (rand() % 75)) / 100.0F,
-                static_cast<float>(25 + (rand() % 75)) / 100.0F,
-                static_cast<float>(25 + (rand() % 75)) / 100.0F,
-            };
-        }
-
-        if (mat_info.normal_texture) {
-            material.normalTexture.index = static_cast<int>(model.textures.size());
-            material.normalTexture.texCoord = 0;
-
-            tinygltf::Texture& tex = model.textures.emplace_back();
-            tex.sampler = static_cast<int>(model.samplers.size());
-            tex.source = static_cast<int>(model.images.size());
-
-            tinygltf::Sampler& sampler = model.samplers.emplace_back();
-            auto filter = tinygltf_filter(mat_info.diffuse_texture.filter);
-            sampler.minFilter = filter;
-            sampler.magFilter = filter;
-
-            auto wrapping = mat_info.diffuse_texture.no_wrapping
-                                ? TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE
-                                : TINYGLTF_TEXTURE_WRAP_REPEAT;
-            sampler.wrapS = wrapping;
-            sampler.wrapT = wrapping;
-
-            fs::path out_file = export_dir / "img" / (mat_info.normal_texture.safe_name + ".png");
-            mat_info.normal_texture.write_to(out_file);
-
-            tinygltf::Image& image = model.images.emplace_back();
-            image.uri = fs::relative(out_file, export_dir).generic_string();
-        }
+        export_material(
+            model,
+            export_dir,
+            primitive.material,
+            mesh_primitive
+        );
 
         mesh_primitive.mode = TINYGLTF_MODE_TRIANGLES;
         mesh_primitive.indices = static_cast<int>(model.accessors.size());
@@ -326,6 +285,83 @@ void export_primitives(
                 mesh_primitive.attributes[std::format("TEXCOORD_{}", i)] = id;
             }
         }
+    }
+}
+
+void export_material(
+    tinygltf::Model& model,
+    const fs::path& export_dir,
+    void* raw_material,
+    tinygltf::Primitive& mesh_primitive
+) {
+    MaterialExporter material_exporter{};
+    static std::unordered_map<uintptr_t, int> material_cache{};
+
+    auto mesh_addr = reinterpret_cast<uintptr_t>(raw_material);
+
+    // quick check to see if we've already exported the material, if so we cna just use that an exit
+    if (auto it = material_cache.find(mesh_addr); it != material_cache.end()) {
+        mesh_primitive.material = it->second;
+        return;
+    }
+
+    mesh_primitive.material = static_cast<int>(model.materials.size());
+    material_cache.emplace(mesh_addr, mesh_primitive.material);
+    tinygltf::Material& material = model.materials.emplace_back();
+    material.pbrMetallicRoughness.metallicFactor = 0.8;
+    material.pbrMetallicRoughness.roughnessFactor = 0.3;
+
+    material_exporter.export_material(reinterpret_cast<UObject*>(raw_material));
+    const auto& mat_info = material_exporter.export_info();
+
+    material.doubleSided = mat_info.is_double_sided;
+    material.alphaCutoff = mat_info.alpha_cutoff;
+    material.alphaMode = gltf_alpha_mode(mat_info.blend_mode);
+
+    auto common_texture_setup = [&model, &export_dir](const TextureExportInfo& info) -> void {
+        tinygltf::Texture& tex = model.textures.emplace_back();
+        tex.sampler = static_cast<int>(model.samplers.size());
+        tex.source = static_cast<int>(model.images.size());
+
+        tinygltf::Sampler& sampler = model.samplers.emplace_back();
+        auto filter = gltf_texture_filter(info.filter);
+        sampler.minFilter = filter;
+        sampler.magFilter = filter;
+
+        auto wrapping = info.no_wrapping ? TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE : TINYGLTF_TEXTURE_WRAP_REPEAT;
+        sampler.wrapS = wrapping;
+        sampler.wrapT = wrapping;
+
+        fs::path out_file = export_dir / "img" / (info.safe_name + ".png");
+        info.write_to(out_file);
+
+        tinygltf::Image& image = model.images.emplace_back();
+        image.uri = fs::relative(out_file, export_dir).generic_string();
+    };
+
+    if (mat_info.diffuse_texture) {
+        material.pbrMetallicRoughness.baseColorTexture.index = static_cast<int>(model.textures.size());
+        material.pbrMetallicRoughness.baseColorTexture.texCoord = 0;
+        common_texture_setup(mat_info.diffuse_texture);
+    } else {
+        material.pbrMetallicRoughness.baseColorFactor = {
+            static_cast<float>(25 + (rand() % 75)) / 100.0F,
+            static_cast<float>(25 + (rand() % 75)) / 100.0F,
+            static_cast<float>(25 + (rand() % 75)) / 100.0F,
+            1.0
+        };
+    }
+
+    if (mat_info.normal_texture) {
+        material.normalTexture.index = static_cast<int>(model.textures.size());
+        material.normalTexture.texCoord = 0;
+        common_texture_setup(mat_info.normal_texture);
+    }
+
+    if (mat_info.emissive_texture) {
+        material.emissiveTexture.index = static_cast<int>(model.textures.size());
+        material.emissiveTexture.texCoord = 0;
+        common_texture_setup(mat_info.emissive_texture);
     }
 }
 
