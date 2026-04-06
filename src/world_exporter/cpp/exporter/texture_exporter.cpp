@@ -6,9 +6,10 @@
 
 #include "world_exporter/cpp/exporter/texture_exporter.h"
 
-#include "unrealsdk/unreal/find_class.h"
 #include "s3tc-dxt-decompression/s3tc.h"
 #include "stb/stb_image_write.h"
+#include "unrealsdk/unreal/find_class.h"
+#include "unrealsdk/unreal/properties/zboolproperty.h"
 
 namespace world_exporter {
 
@@ -148,6 +149,7 @@ bool TextureExporter::export_texture(UObject* texture) {
 
     try {
         extract_pixel_data_from_rhi(rhi);
+        extract_sampler_settings(texture);
         m_Export.safe_name = sanitise_path_name(unrealsdk::utils::narrow(texture->get_path_name()));
     } catch (const std::runtime_error& err) {
         LOG(ERROR, "failed to export texture {}", texture->get_path_name());
@@ -234,6 +236,24 @@ void TextureExporter::extract_pixel_data_from_rhi(helpers::FD3D9Texture* rhi) {
     surface->UnlockRect();
     surface->Release();
     texture->Release();
+}
+
+void TextureExporter::extract_sampler_settings(unrealsdk::unreal::UObject* texture) {
+    static auto texture_cls = find_class(L"Texture"_fn);
+    static auto prop_no_tiling = texture_cls->find_prop_and_validate<ZBoolProperty>(L"bNoTiling"_fn);
+    static auto prop_filter = texture_cls->find_prop_and_validate<ZByteProperty>(L"Filter"_fn);
+
+    uintptr_t base = reinterpret_cast<uintptr_t>(texture);
+    m_Export.no_wrapping = get_property(prop_no_tiling, 0, base);
+    auto filter = get_property(prop_filter, 0, base);
+
+    if (filter == static_cast<uint8_t>(TextureFilter::Linear)) {
+        m_Export.filter = TextureFilter::Linear;
+    } else if (filter == static_cast<uint8_t>(TextureFilter::Nearest)) {
+        m_Export.filter = TextureFilter::Nearest;
+    } else {
+        m_Export.filter = TextureFilter::Linear;
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

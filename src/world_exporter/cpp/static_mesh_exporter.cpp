@@ -59,6 +59,19 @@ void export_primitives(
     const fs::path& export_dir
 );
 
+auto tinygltf_filter(TextureFilter filter) {
+    switch (filter) {
+        case TextureFilter::Nearest:
+            return TINYGLTF_TEXTURE_FILTER_NEAREST;
+        case TextureFilter::Linear:
+            return TINYGLTF_TEXTURE_FILTER_LINEAR;
+        default: {
+            LOG(WARNING, "this shit should be unreachable");
+        }
+    }
+    return TINYGLTF_TEXTURE_FILTER_LINEAR;
+}
+
 }  // namespace
 
 void WorldExporter::export_static_meshes() {
@@ -240,10 +253,15 @@ void export_primitives(
             tex.source = static_cast<int>(model.images.size());
 
             tinygltf::Sampler& sampler = model.samplers.emplace_back();
-            sampler.minFilter = TINYGLTF_TEXTURE_FILTER_LINEAR;
-            sampler.magFilter = TINYGLTF_TEXTURE_FILTER_LINEAR;
-            sampler.wrapS = TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE;
-            sampler.wrapT = TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE;
+            auto filter = tinygltf_filter(mat_info.diffuse_texture.filter);
+            sampler.minFilter = filter;
+            sampler.magFilter = filter;
+
+            auto wrapping = mat_info.diffuse_texture.no_wrapping
+                                ? TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE
+                                : TINYGLTF_TEXTURE_WRAP_REPEAT;
+            sampler.wrapS = wrapping;
+            sampler.wrapT = wrapping;
 
             fs::path out_file = export_dir / "img" / (mat_info.diffuse_texture.safe_name + ".png");
             mat_info.diffuse_texture.write_to(out_file);
@@ -269,10 +287,15 @@ void export_primitives(
             tex.source = static_cast<int>(model.images.size());
 
             tinygltf::Sampler& sampler = model.samplers.emplace_back();
-            sampler.minFilter = TINYGLTF_TEXTURE_FILTER_LINEAR;
-            sampler.magFilter = TINYGLTF_TEXTURE_FILTER_LINEAR;
-            sampler.wrapS = TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE;
-            sampler.wrapT = TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE;
+            auto filter = tinygltf_filter(mat_info.diffuse_texture.filter);
+            sampler.minFilter = filter;
+            sampler.magFilter = filter;
+
+            auto wrapping = mat_info.diffuse_texture.no_wrapping
+                                ? TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE
+                                : TINYGLTF_TEXTURE_WRAP_REPEAT;
+            sampler.wrapS = wrapping;
+            sampler.wrapT = wrapping;
 
             fs::path out_file = export_dir / "img" / (mat_info.normal_texture.safe_name + ".png");
             mat_info.normal_texture.write_to(out_file);

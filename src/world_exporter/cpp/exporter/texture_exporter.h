@@ -12,7 +12,11 @@
 
 namespace world_exporter {
 
-// TODO: certain sampler parameters should also be exported
+enum class TextureFilter : uint8_t {
+    Nearest = 0,
+    Linear = 1
+};
+
 struct TextureExportInfo {
     static constexpr auto num_components = 4;
     std::unique_ptr<uint8_t[]> data{nullptr};  // RGBA literal bytes
@@ -20,6 +24,8 @@ struct TextureExportInfo {
     uint32_t height{0};
     bool is_srgb{false};
     bool is_rgbe{false};
+    TextureFilter filter{TextureFilter::Linear};  // Texture.Filter in unreal
+    bool no_wrapping{false};                      // Texture.bNoTiling
     std::string safe_name{};
 
     operator bool() const noexcept { return data != nullptr && width != 0 && height != 0; }
@@ -46,6 +52,7 @@ class TextureExporter {
 
    private:
     void extract_pixel_data_from_rhi(helpers::FD3D9Texture* rhi);
+    void extract_sampler_settings(unrealsdk::unreal::UObject* texture);
 };
 
 }  // namespace world_exporter
