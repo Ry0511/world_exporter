@@ -18,7 +18,7 @@ using namespace unrealsdk::unreal;
 
 namespace helpers {
 struct UStaticMesh;
-struct StaticMeshComponent;
+struct StaticMeshComponent; // TODO this is unused, delete it
 }  // namespace helpers
 
 class WorldExporter {

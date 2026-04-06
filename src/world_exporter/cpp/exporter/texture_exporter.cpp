@@ -43,6 +43,7 @@ bool is_supported_format(const D3DFORMAT& fmt) noexcept {
 
 void decompress_dxt1(TextureExportInfo& out, uint8_t* data);
 void decompress_dxt5(TextureExportInfo& out, uint8_t* data);
+std::string sanitise_path_name(const std::string& path_name);
 
 }  // namespace
 
@@ -147,6 +148,7 @@ bool TextureExporter::export_texture(UObject* texture) {
 
     try {
         extract_pixel_data_from_rhi(rhi);
+        m_Export.safe_name = sanitise_path_name(unrealsdk::utils::narrow(texture->get_path_name()));
     } catch (const std::runtime_error& err) {
         LOG(ERROR, "failed to export texture {}", texture->get_path_name());
         LOG(ERROR, "with reason: {}", err.what());
@@ -208,6 +210,7 @@ void TextureExporter::extract_pixel_data_from_rhi(helpers::FD3D9Texture* rhi) {
     m_Export.width = desc.Width;
     m_Export.height = desc.Height;
     m_Export.is_srgb = rhi->bSRGB != 0;
+    m_Export.data.reset();
     m_Export.data = std::make_unique<uint8_t[]>(m_Export.size_in_bytes());
 
     if (desc.Format == D3DFMT_DXT1) {
@@ -295,6 +298,21 @@ void decompress_dxt5(TextureExportInfo& out, uint8_t* data) {
         data,
         reinterpret_cast<unsigned long*>(out.data.get())
     );
+}
+
+std::string sanitise_path_name(const std::string& path_name) {
+    std::string out{};
+    // Foo.Baz.Bar -> foo_baz_bar
+    for (char elem : path_name) {
+        if (elem == '.' || elem == ' ') {
+            out += "_";
+        } else if (std::isalpha(elem)) {
+            out += static_cast<char>(std::tolower(elem));
+        } else if (std::isdigit(elem)) {
+            out += elem;
+        }
+    }
+    return out;
 }
 
 // NOLINTEND(*-pro-bounds-constant-array-index)

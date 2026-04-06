@@ -90,7 +90,7 @@ struct Float16 {
             ret.V.Mantissa = 8380416;
         } else {
             ret.V.Exponent = int32_t(V.Exponent) - 15 + 127;
-            ret.V.Mantissa = int16_t(V.Mantissa) << 13;
+            ret.V.Mantissa = uint32_t(V.Mantissa) << 13;
         }
 
         return ret.FloatValue;

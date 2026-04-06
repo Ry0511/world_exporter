@@ -155,7 +155,7 @@ struct FStaticMeshLodInfo {
 
 struct FStaticMeshElement {
     WORLD_EXPORTER_DISALLOW_CREATE(FStaticMeshElement);
-    void* Material;
+    void* Material; // UMaterialInterface
     unreal::UnmanagedFString Name;
     int32_t bEnableCollision;
     int32_t bOldEnableCollision;

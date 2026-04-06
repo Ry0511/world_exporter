@@ -5,9 +5,11 @@
 //
 
 #include "world_exporter/cpp/pch.h"
+
+#include "world_exporter/cpp/exporter/static_mesh_exporter.h"
+#include "world_exporter/cpp/exporter/material_exporter.h"
 #include "world_exporter/cpp/world_exporter.h"
 #include "world_exporter/cpp/util/static_mesh.h"
-#include "world_exporter/cpp/exporter/static_mesh_exporter.h"
 
 #include "tinygltf/tiny_gltf.h"
 
@@ -53,7 +55,8 @@ void export_primitives(
     const StaticMeshExportInfo& info,
     tinygltf::Model& model,
     const GltfMeshExportInfo& gltf,
-    tinygltf::Mesh& gltf_mesh
+    tinygltf::Mesh& gltf_mesh,
+    const fs::path& export_dir
 );
 
 }  // namespace
@@ -115,7 +118,7 @@ void WorldExporter::export_static_meshes() {
         m_MeshMap[reinterpret_cast<uintptr_t>(obj)] = mesh_id;
         tinygltf::Mesh& gltf_mesh = m_TheModel.meshes.emplace_back();
         gltf_mesh.name = obj->Name();
-        export_primitives(info, m_TheModel, gltf_export, gltf_mesh);
+        export_primitives(info, m_TheModel, gltf_export, gltf_mesh, m_RootDir);
     }
 }
 
@@ -172,11 +175,15 @@ void export_uvnormal_buffer(
     tinygltf::Model& model,
     GltfMeshExportInfo& out_info
 ) {
+    constexpr uint32_t normal_size = sizeof(float) * 3;
+    constexpr uint32_t uv_size = sizeof(float) * 2;
+
     int uvnormal_bv_id = static_cast<int>(model.bufferViews.size());
     tinygltf::BufferView& uvnormal_bv = model.bufferViews.emplace_back();
     uvnormal_bv.buffer = out_info.mesh_buffer_id;
     uvnormal_bv.byteOffset = info.uvnormal_buffer.start;
     uvnormal_bv.byteLength = info.uvnormal_buffer.size();
+    uvnormal_bv.byteStride = size_t{normal_size + (uv_size * info.num_tex_coords)};
     uvnormal_bv.target = TINYGLTF_TARGET_ARRAY_BUFFER;
 
     out_info.normal_ac_id = static_cast<int>(model.accessors.size());
@@ -186,9 +193,6 @@ void export_uvnormal_buffer(
     normal_ac.componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
     normal_ac.count = info.uvnormal_buffer.vertex_count;
     normal_ac.type = TINYGLTF_TYPE_VEC3;
-
-    constexpr size_t normal_size = sizeof(float) * 3;
-    constexpr size_t uv_size = sizeof(float) * 2;
 
     for (size_t i = 0; i < info.num_tex_coords; ++i) {
         // NOLINTNEXTLINE(*-pro-bounds-constant-array-index)
@@ -207,31 +211,75 @@ void export_primitives(
     const StaticMeshExportInfo& info,
     tinygltf::Model& model,
     const GltfMeshExportInfo& gltf_export,
-    tinygltf::Mesh& gltf_mesh
+    tinygltf::Mesh& gltf_mesh,
+    const fs::path& export_dir
 ) {
-
     if (info.primitives.empty()) {
-      LOG(WARNING, "mesh {} has no primitives?", gltf_mesh.name);
+        LOG(WARNING, "mesh {} has no primitives?", gltf_mesh.name);
     }
 
-    std::random_device rd{};
-    std::mt19937 rng{rd()};
-    std::uniform_real_distribution<double> random_real{0.25, 1.0};
+    MaterialExporter material_exporter{};
 
     for (const auto& primitive : info.primitives) {
         tinygltf::Primitive& mesh_primitive = gltf_mesh.primitives.emplace_back();
-
-        // TODO: material extraction - currently just filling it with random materials
         mesh_primitive.material = static_cast<int>(model.materials.size());
+
         tinygltf::Material& material = model.materials.emplace_back();
-        material.pbrMetallicRoughness.baseColorFactor = {
-            random_real(rng),
-            random_real(rng),
-            random_real(rng),
-            1.0
-        };
-        material.pbrMetallicRoughness.metallicFactor = random_real(rng);
-        material.pbrMetallicRoughness.roughnessFactor = random_real(rng);
+        material.pbrMetallicRoughness.metallicFactor = 0.8;
+        material.pbrMetallicRoughness.roughnessFactor = 0.3;
+
+        auto* mat_obj = reinterpret_cast<UObject*>(primitive.material);
+        material_exporter.export_material(mat_obj);
+        const auto& mat_info = material_exporter.export_info();
+
+        if (mat_info.diffuse_texture) {
+            material.pbrMetallicRoughness.baseColorTexture.index = static_cast<int>(model.textures.size());
+            material.pbrMetallicRoughness.baseColorTexture.texCoord = 0;
+            tinygltf::Texture& tex = model.textures.emplace_back();
+            tex.sampler = static_cast<int>(model.samplers.size());
+            tex.source = static_cast<int>(model.images.size());
+
+            tinygltf::Sampler& sampler = model.samplers.emplace_back();
+            sampler.minFilter = TINYGLTF_TEXTURE_FILTER_LINEAR;
+            sampler.magFilter = TINYGLTF_TEXTURE_FILTER_LINEAR;
+            sampler.wrapS = TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE;
+            sampler.wrapT = TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE;
+
+            fs::path out_file = export_dir / "img" / (mat_info.diffuse_texture.safe_name + ".png");
+            mat_info.diffuse_texture.write_to(out_file);
+
+            tinygltf::Image& image = model.images.emplace_back();
+            image.uri = fs::relative(out_file, export_dir).generic_string();
+
+        } else {
+            material.pbrMetallicRoughness.baseColorFactor = {
+                static_cast<float>(25 + (rand() % 75)) / 100.0F,
+                static_cast<float>(25 + (rand() % 75)) / 100.0F,
+                static_cast<float>(25 + (rand() % 75)) / 100.0F,
+                static_cast<float>(25 + (rand() % 75)) / 100.0F,
+            };
+        }
+
+        if (mat_info.normal_texture) {
+            material.normalTexture.index = static_cast<int>(model.textures.size());
+            material.normalTexture.texCoord = 0;
+
+            tinygltf::Texture& tex = model.textures.emplace_back();
+            tex.sampler = static_cast<int>(model.samplers.size());
+            tex.source = static_cast<int>(model.images.size());
+
+            tinygltf::Sampler& sampler = model.samplers.emplace_back();
+            sampler.minFilter = TINYGLTF_TEXTURE_FILTER_LINEAR;
+            sampler.magFilter = TINYGLTF_TEXTURE_FILTER_LINEAR;
+            sampler.wrapS = TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE;
+            sampler.wrapT = TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE;
+
+            fs::path out_file = export_dir / "img" / (mat_info.normal_texture.safe_name + ".png");
+            mat_info.normal_texture.write_to(out_file);
+
+            tinygltf::Image& image = model.images.emplace_back();
+            image.uri = fs::relative(out_file, export_dir).generic_string();
+        }
 
         mesh_primitive.mode = TINYGLTF_MODE_TRIANGLES;
         mesh_primitive.indices = static_cast<int>(model.accessors.size());

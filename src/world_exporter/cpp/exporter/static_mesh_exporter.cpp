@@ -85,7 +85,12 @@ bool StaticMeshExporter::export_static_mesh(UStaticMesh* mesh) {
             for (size_t i = 0; i < model->SubMeshes.size(); ++i) {
                 const auto& sub_mesh = model->SubMeshes[i];
                 auto& primitive = m_ExportInfo.primitives.emplace_back();
+                // potential but likely not required?
+                // if (lod_zero.Elements.data != nullptr && static_cast<int32_t>(i) < lod_zero.Elements.count) {
+                //     primitive.material = reinterpret_cast<void*>(lod_zero.Elements[i].Material);
+                // }
                 primitive.material = sub_mesh.Material;
+
                 size_t offset = sub_mesh.FirstIndex * sizeof(uint16_t);
                 size_t end = (sub_mesh.NumTriangles * uint32_t{3}) * sizeof(uint16_t);
                 primitive.indices = {offset, end, sub_mesh.NumTriangles * uint32_t{3}};
@@ -127,6 +132,12 @@ void StaticMeshExporter::export_index_buffer(const FStaticMeshRenderData& mesh) 
     insert_range_as_bytes(reinterpret_cast<const uint8_t*>(buf.Indices.data), buf.Indices.size() * sizeof(int16_t));
     m_ExportInfo.index_buffer.end = m_ExportInfo.binary_buffer.size();
     m_ExportInfo.index_buffer.vertex_count = buf.Indices.size();
+
+    // pad so that the next item is 4 byte aligned
+    if (buf.Indices.size() % 2 != 0) {
+        m_ExportInfo.binary_buffer.emplace_back(uint8_t{0});
+        m_ExportInfo.binary_buffer.emplace_back(uint8_t{0});
+    }
 }
 
 void StaticMeshExporter::export_position_buffer(const helpers::FStaticMeshRenderData& mesh) {

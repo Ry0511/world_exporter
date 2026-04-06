@@ -20,7 +20,9 @@ struct TextureExportInfo {
     uint32_t height{0};
     bool is_srgb{false};
     bool is_rgbe{false};
+    std::string safe_name{};
 
+    operator bool() const noexcept { return data != nullptr && width != 0 && height != 0; }
     uint32_t size_in_bytes() const noexcept { return width * height * uint32_t{num_components}; }
     void to_linear() noexcept;
     void to_srgb() noexcept;
