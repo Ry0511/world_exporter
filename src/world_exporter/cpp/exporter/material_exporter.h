@@ -41,6 +41,8 @@ class MaterialExporter {
     bool export_material(unrealsdk::unreal::UObject* obj);
 
    private:
+    void extract_material_interface(unrealsdk::unreal::UObject* mat);
+    void extract_material_instance_constant(unrealsdk::unreal::UObject* mat);
     void extract_material_props(unrealsdk::unreal::UObject* mat);
 };
 

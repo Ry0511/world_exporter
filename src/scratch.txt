@@ -1,0 +1,42 @@
+56 8B F1 83 7E 24 00 75 ?? 8B 06 8B 50 08 53 8B 5E 08 57 FF D2 8B 0D ?? ?? ?? ?? 8B F8 0F AF FB 85 C9 75 ?? E8 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 8B 01 8B 50 04 6A 08 57
+
+        00437d37 FF D2           CALL       EDX
+        00437d39 8B 7E 08        MOV        EDI,dword ptr [ESI + 0x8]
+        00437d3c 89 46 24        MOV        dword ptr [ESI + 0x24],EAX
+        00437d3f 8B 06           MOV        EAX,dword ptr [ESI]
+        00437d41 8B 50 08        MOV        EDX,dword ptr [EAX + 0x8]
+        00437d44 8B CE           MOV        this,ESI
+        00437d46 FF D2           CALL       EDX
+        00437d48 0F AF C7        IMUL       EAX,EDI
+        00437d4b 85 C0           TEST       EAX,EAX
+        00437d4d 7E 34           JLE        LAB_00437d83
+        00437d4f 8B 4E 2C        MOV        this,dword ptr [ESI + 0x2c]
+        00437d52 8B 01           MOV        EAX,dword ptr [this->vftable]
+        00437d54 8B 50 2C        MOV        EDX,dword ptr [EAX + 0x2c]
+        00437d57 8B 7E 24        MOV        EDI,dword ptr [ESI + 0x24]
+        00437d5a FF D2           CALL       EDX
+        00437d5c 8B 4E 2C        MOV        this,dword ptr [ESI + 0x2c]
+        00437d5f 8B 56 0C        MOV        EDX,dword ptr [ESI + 0xc]
+        00437d62 8B D8           MOV        EBX,EAX
+        00437d64 8B 01           MOV        EAX,dword ptr [this->vftable]
+        00437d66 8B 40 38        MOV        EAX,dword ptr [EAX + 0x38]
+        00437d69 52              PUSH       EDX
+        00437d6a FF D0           CALL       EAX
+        00437d6c 8B 4E 2C        MOV        this,dword ptr [ESI + 0x2c]
+        00437d6f 57              PUSH       EDI
+        00437d70 51              PUSH       this
+        00437d71 8B CE           MOV        this,ESI
+        00437d73 E8 A8 D3        CALL       FUN_00435120                                     undefined FUN_00435120(undefined
+                 FF FF
+        00437d78 8B 4E 2C        MOV        this,dword ptr [ESI + 0x2c]
+        00437d7b 8B 11           MOV        EDX,dword ptr [this->vftable]
+        00437d7d 8B 42 38        MOV        EAX,dword ptr [EDX + 0x38]
+        00437d80 53              PUSH       EBX
+        00437d81 FF D0           CALL       EAX
+                             LAB_00437d83                                    XREF[1]:     00437d4d(j)  
+        00437d83 5F              POP        EDI
+        00437d84 5B              POP        EBX
+                             LAB_00437d85                                    XREF[1]:     00437d07(j)  
+        00437d85 5E              POP        ESI
+        00437d86 C3              RET
+                             ********** MakeSureBulkDataIsLoaded_FUN_00437d00 Exit *******

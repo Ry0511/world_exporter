@@ -18,15 +18,11 @@ namespace world_exporter {
 namespace {
 constexpr size_t buffer_prealloc_size{1024LLU * 1024LLU};
 constexpr size_t primitives_prealloc_count{16};
-// UE3 1.0 ~= 1cm, glTF 1.0 ~= 1m
-constexpr glm::vec3 gltf_unit_scale{0.01F, 0.01F, 0.01F};
+constexpr float gltf_unit_scale = 0.01F;
 
 glm::vec3 gltf_swizzle(const float* vec) noexcept {
-    // glTF -X = Right   <> ( UE +Y = Right   ) ; X = -Y
-    //      +Y = Up      <> ( UE +Z = Up      ) ; Y = +Z
-    //      +Z = Forward <> ( UE +X = Forward ) ; Z = +X
-    // see: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units
-    return glm::vec3{-vec[1], vec[2], vec[0]};
+    // direct remapping would be: -Y,Z,X but I guess this works as well
+    return glm::vec3{vec[0], vec[2], vec[1]};
 }
 }  // namespace
 

@@ -47,7 +47,8 @@ struct AngleTable {
 
 AngleTable lut{};
 
-glm::mat4 create_rot_matrix(const FRotator& rot) {
+glm::quat create_rot_matrix(const FRotator& rot) {
+#if 0
     glm::mat4 mat{1.0F};
 
     float SR = lut.sin_tab(rot.Roll);
@@ -68,8 +69,30 @@ glm::mat4 create_rot_matrix(const FRotator& rot) {
     mat[2][0] = -(CR * SP * CY + SR * SY);
     mat[2][1] = CY * SR - CR * SP * SY;
     mat[2][2] = CR * CP;
-
-    return mat;
+    return glm::quat_cast(mat);
+#else
+    // signs was taken from experiments
+    float yaw = rot.Yaw * (glm::pi<float>() / 32768.0F);
+    float pitch = -rot.Pitch * (glm::pi<float>() / 32768.0F);
+    float roll = -rot.Roll * (glm::pi<float>() / 32768.0F);
+    // derived from Doom3 idAngles::ToQuat()
+    float sz = glm::sin(yaw * 0.5F);
+    float cz = glm::cos(yaw * 0.5F);
+    float sy = glm::sin(pitch * 0.5F);
+    float cy = glm::cos(pitch * 0.5F);
+    float sx = glm::sin(roll * 0.5F);
+    float cx = glm::cos(roll * 0.5F);
+    float sxcy = sx * cy;
+    float cxcy = cx * cy;
+    float sxsy = sx * sy;
+    float cxsy = cx * sy;
+    return glm::quat{
+        cxcy * cz + sxsy * sz,
+        cxsy * sz - sxcy * cz,
+        -cxsy * cz - sxcy * sz,
+        sxsy * cz - cxcy * sz
+    };
+#endif
 }
 
 // NOLINTEND(*-pro-bounds-constant-array-index,*-math-missing-parentheses)
@@ -103,36 +126,53 @@ void WorldExporter::export_static_mesh_component(StaticMeshComponent* comp) {
     }
 
     tinygltf::Node node{};
+    node.name = mesh->Name().operator std::string()
+                + "#" + reinterpret_cast<UObject*>(comp)->Name().operator std::string();
     node.mesh = it->second;
 
     // Apply the translation
     auto wpos = obj->get<UFunction, BoundFunction>(fn_get_position).call<ZStructProperty>();
     const auto& pos = *reinterpret_cast<FVector*>(wpos.base.get());
-    node.translation = {-(pos.Y * 0.01F), pos.Z * 0.01F, pos.X * 0.01F};
 
     // Apply the scaling
     auto scale = get_property(prop_scale, 0, reinterpret_cast<uintptr_t>(obj));
     auto wscale3d = get_property(prop_scale3d, 0, reinterpret_cast<uintptr_t>(obj));
     const auto& scale3d = *reinterpret_cast<FVector*>(wscale3d.base.get());
-    glm::vec3 vscale{(scale3d.X * scale), (scale3d.Y * scale), (scale3d.Z * scale)};
-    node.scale = {vscale.y, vscale.z, vscale.x};
+    glm::vec3 vscale{(scale3d.X * scale), (scale3d.Z * scale), (scale3d.Y * scale)};
 
     // Apply the rotation
     auto wrot = obj->get<UFunction, BoundFunction>(fn_get_rotation).call<ZStructProperty>();
     const auto& rot = *reinterpret_cast<FRotator*>(wrot.base.get());
 
-    // TODO: This does not account for the effects that negative scale has on the final rotated
-    //  output so this only going to work for objects whose scale is greater than zero.
-    glm::mat4 basis{
-        glm::vec4{+0, +0, +1, +0},
-        glm::vec4{-1, +0, +0, +0},
-        glm::vec4{+0, +1, +0, +0},
-        glm::vec4{+0, +0, +0, +1},
-    };
-    glm::mat4 rot_mat = create_rot_matrix(rot);
-    rot_mat = basis * rot_mat * glm::inverse(basis);
-    glm::quat q = glm::normalize(glm::quat_cast(rot_mat));
+    glm::quat q = glm::normalize(create_rot_matrix(rot));
+    q = glm::quat{q.w, q.x, q.z, q.y};
+
+    // "scale": [
+    //   0.75,    X  |  X
+    //   -0.87,   Y  |  Z
+    //   1.0      Z  |  Y
+    // ],
+
+    if (vscale.x < 0) {
+        // auto rz = glm::angleAxis(glm::pi<float>(), glm::vec3{0, 0, 1});
+        // q = rz * q;
+    }
+
+    if (vscale.y < 0) {
+        glm::mat3 r = glm::mat3_cast(q);
+        glm::mat3 f{1.0F};
+        f[0][0] = vscale.z < 0.0F ? -1.0F : 1.0F;
+        f[1][1] = vscale.y < 0.0F ? -1.0F : 1.0F;
+        f[2][2] = vscale.x < 0.0F ? -1.0F : 1.0F;
+        r = f * r * f;
+        q = glm::quat_cast(r);
+    }
+
+    q = glm::normalize(q);
+
+    node.translation = {pos.X * 0.01F, pos.Z * 0.01F, pos.Y * 0.01F};
     node.rotation = {q.x, q.y, q.z, q.w};
+    node.scale = {vscale.x, vscale.y, vscale.z};
 
     m_TheScene.nodes.push_back(static_cast<int>(m_TheModel.nodes.size()));
     m_TheModel.nodes.push_back(node);
